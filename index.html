@@ -367,7 +367,7 @@ async function analyze() {
 注意：如果無法確定是什麼藥，請說明可能的範圍，並提醒用戶諮詢藥師。`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const body = {
       contents: [{ parts: [
         { text: prompt },
