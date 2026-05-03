@@ -138,7 +138,7 @@
 
   <div class="home-header">
     <div class="icon">🏥</div>
-    <h1>AI 藥單助理</h1>
+    <h1>AI 藥單助理 <span style="font-size:13px;color:#6688aa;font-weight:400;">v1.4</span></h1>
     <p>拍照即可分析藥品、用途與注意事項</p>
   </div>
 
@@ -212,11 +212,13 @@
 
   <div class="settings-body">
     <div class="settings-section">
-      <h2>GEMINI API KEY</h2>
-      <input class="input-field" type="password" id="apiKeyInput" placeholder="AIza...（貼上你的 API Key）">
+      <h2>API KEY 設定</h2>
+      <input class="input-field" type="password" id="apiKeyInput" placeholder="貼上你的 API Key">
       <div class="input-hint">
-        免費取得：<a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a><br>
-        登入 Google 帳號 → 點「Get API key」→ 建立新金鑰 → 複製貼上
+        支援以下三種 Key：<br>
+        🔵 <strong>OpenRouter</strong>（推薦）— <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>，免費有 Gemini 模型，sk-or- 開頭<br>
+        🟡 <strong>Groq</strong> — <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a>，免費速度快，gsk_ 開頭<br>
+        ⚪ <strong>Google Gemini</strong> — <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>，AIza 開頭
       </div>
       <button class="save-btn" onclick="saveApiKey()">✅ 儲存設定</button>
     </div>
@@ -231,7 +233,7 @@
     <div class="settings-section">
       <h2>關於</h2>
       <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; font-size:13px; color:var(--gray); line-height:1.8;">
-        使用 Google Gemini 1.5 Flash Latest 模型進行圖像分析<br>
+        使用 Google Gemini 1.5 Flash 模型進行圖像分析<br>
         照片不會被儲存，分析後即刪除<br>
         版本：1.0.0
       </div>
@@ -366,29 +368,75 @@ async function analyze() {
 
 注意：如果無法確定是什麼藥，請說明可能的範圍，並提醒用戶諮詢藥師。`;
 
+  // Detect key type and call appropriate API
+  const isOpenRouter = apiKey.startsWith('sk-or-');
+  const isGroq = apiKey.startsWith('gsk_');
+
   try {
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
-    const body = {
-      contents: [{ parts: [
-        { text: prompt },
-        { inline_data: { mime_type: currentImageMime, data: currentImageBase64 } }
-      ]}],
-      generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
-    };
+    let text;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    if (isOpenRouter || isGroq) {
+      // OpenAI-compatible format (OpenRouter / Groq)
+      const baseUrl = isOpenRouter
+        ? 'https://openrouter.ai/api/v1/chat/completions'
+        : 'https://api.groq.com/openai/v1/chat/completions';
+      const model = isOpenRouter
+        ? 'google/gemini-2.0-flash-exp:free'
+        : 'llama-3.2-11b-vision-preview';
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error?.message || `API 錯誤 ${res.status}`);
+      const body = {
+        model,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: `data:${currentImageMime};base64,${currentImageBase64}` } },
+            { type: 'text', text: prompt }
+          ]
+        }],
+        temperature: 0.3,
+        max_tokens: 2048
+      };
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      };
+      if (isOpenRouter) {
+        headers['HTTP-Referer'] = 'https://elicchiu45.github.io/medicine-scanner';
+        headers['X-Title'] = 'AI藥單助理';
+      }
+
+      const res = await fetch(baseUrl, { method: 'POST', headers, body: JSON.stringify(body) });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || `API 錯誤 ${res.status}`);
+      }
+      const data = await res.json();
+      text = data.choices?.[0]?.message?.content || '無法取得分析結果';
+
+    } else {
+      // Google Gemini format
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const body = {
+        contents: [{ parts: [
+          { text: prompt },
+          { inline_data: { mime_type: currentImageMime, data: currentImageBase64 } }
+        ]}],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+      };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || `API 錯誤 ${res.status}`);
+      }
+      const data = await res.json();
+      text = data.candidates?.[0]?.content?.parts?.[0]?.text || '無法取得分析結果';
     }
 
-    const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '無法取得分析結果';
     renderResult(text);
 
   } catch (err) {
