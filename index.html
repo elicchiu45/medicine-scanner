@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="藥單分析">
+<title>智慧藥單分析</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #0a0f1e; --panel: #0f1829; --border: #1e3a5f;
+    --blue: #00aaff; --green: #00cc77; --yellow: #ffcc00;
+    --red: #ff4455; --purple: #aa77ff; --gray: #6688aa;
+    --text: #ddeeff; --safe: #0a1f33;
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, 'Microsoft JhengHei', sans-serif; overflow: hidden; }
+
+  /* ── Pages ── */
+  .page { position: fixed; inset: 0; display: flex; flex-direction: column; overflow-y: auto; transition: transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.35s; }
+  .page.hidden { transform: translateX(100%); opacity: 0; pointer-events: none; }
+
+  /* ── Top bar ── */
+  .topbar { background: rgba(10,15,30,0.95); backdrop-filter: blur(10px); padding: env(safe-area-inset-top, 20px) 16px 14px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; flex-shrink: 0; }
+  .topbar-inner { display: flex; align-items: center; gap: 12px; }
+  .back-btn { background: transparent; border: 1px solid var(--border); color: var(--blue); padding: 6px 14px; border-radius: 20px; font-size: 14px; cursor: pointer; }
+  .topbar h1 { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: 1px; }
+  .settings-btn { margin-left: auto; background: transparent; border: none; color: var(--gray); font-size: 22px; cursor: pointer; }
+
+  /* ── Home ── */
+  #home { background: radial-gradient(ellipse at top, #0a1f3e 0%, var(--bg) 65%); }
+  .home-header { text-align: center; padding: 50px 20px 30px; }
+  .home-header .icon { font-size: 64px; margin-bottom: 12px; }
+  .home-header h1 { font-size: 26px; font-weight: 800; color: var(--blue); letter-spacing: 2px; }
+  .home-header p { font-size: 14px; color: var(--gray); margin-top: 8px; }
+
+  .api-notice { margin: 0 20px 24px; background: rgba(255,204,0,0.08); border: 1px solid rgba(255,204,0,0.3); border-radius: 12px; padding: 14px 16px; font-size: 13px; color: #ffcc77; display: flex; align-items: flex-start; gap: 8px; }
+  .api-notice.ok { background: rgba(0,204,119,0.08); border-color: rgba(0,204,119,0.3); color: #66ffbb; }
+
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 20px 30px; }
+  .scan-card { background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 28px 16px; display: flex; flex-direction: column; align-items: center; gap: 14px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+  .scan-card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 0%, rgba(0,170,255,0.12) 0%, transparent 70%); opacity: 0; transition: opacity 0.2s; }
+  .scan-card:active::before { opacity: 1; transform: scale(0.97); }
+  .scan-card:active { transform: scale(0.96); }
+  .scan-card .card-icon { font-size: 46px; }
+  .scan-card .card-title { font-size: 16px; font-weight: 700; color: var(--text); text-align: center; }
+  .scan-card .card-desc { font-size: 12px; color: var(--gray); text-align: center; line-height: 1.5; }
+  .scan-card.receipt { border-color: rgba(0,170,255,0.4); }
+  .scan-card.pill { border-color: rgba(0,204,119,0.4); }
+  .scan-card.receipt .card-title { color: var(--blue); }
+  .scan-card.pill .card-title { color: var(--green); }
+
+  .history-section { padding: 0 20px 40px; }
+  .section-title { font-size: 13px; color: var(--gray); letter-spacing: 1px; margin-bottom: 12px; }
+  .history-empty { text-align: center; padding: 20px; color: var(--gray); font-size: 13px; }
+
+  /* ── Scanner page ── */
+  #scanner { background: var(--bg); }
+  .scanner-body { padding: 20px; flex: 1; }
+
+  .photo-zone { border: 2px dashed var(--border); border-radius: 20px; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: pointer; transition: border-color 0.2s; position: relative; overflow: hidden; background: var(--panel); margin-bottom: 20px; }
+  .photo-zone.has-image { border-style: solid; border-color: var(--blue); }
+  .photo-zone img { width: 100%; height: 100%; object-fit: contain; position: absolute; inset: 0; border-radius: 18px; }
+  .photo-zone .zone-overlay { display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 1; }
+  .photo-zone .zone-icon { font-size: 48px; }
+  .photo-zone .zone-label { font-size: 14px; color: var(--gray); }
+  .photo-zone.has-image .zone-overlay { background: rgba(0,0,0,0.55); border-radius: 12px; padding: 8px 16px; backdrop-filter: blur(4px); }
+  .photo-zone.has-image .zone-icon { font-size: 28px; }
+  .photo-zone.has-image .zone-label { font-size: 13px; color: #fff; }
+
+  input[type=file] { display: none; }
+
+  .btn-row { display: flex; gap: 12px; margin-bottom: 20px; }
+  .btn { flex: 1; padding: 16px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; letter-spacing: 1px; }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary { background: linear-gradient(135deg, #0066cc, #0044aa); color: #fff; border: 1px solid rgba(0,170,255,0.4); }
+  .btn-primary.green { background: linear-gradient(135deg, #006633, #004422); border-color: rgba(0,204,119,0.4); }
+  .btn-secondary { background: var(--panel); border: 1px solid var(--border); color: var(--gray); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ── Results ── */
+  .result-box { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-top: 4px; }
+  .result-box.analyzing { border-color: var(--blue); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{ border-color: var(--border); } 50%{ border-color: var(--blue); } }
+
+  .result-status { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .spinner { width: 20px; height: 20px; border: 2px solid rgba(0,170,255,0.3); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to{ transform: rotate(360deg); } }
+
+  .result-content { font-size: 14px; line-height: 1.8; color: var(--text); white-space: pre-wrap; }
+  .result-content h3 { color: var(--yellow); font-size: 15px; margin: 14px 0 6px; }
+  .result-content .drug-item { background: rgba(0,170,255,0.06); border-left: 3px solid var(--blue); border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 10px; }
+  .result-content .drug-item.warn { border-color: var(--red); background: rgba(255,68,85,0.06); }
+  .result-content .drug-item.ok { border-color: var(--green); background: rgba(0,204,119,0.06); }
+  .drug-name { font-weight: 700; font-size: 15px; color: var(--blue); }
+  .drug-name.warn { color: var(--red); }
+  .drug-meta { font-size: 12px; color: var(--gray); margin-top: 3px; }
+  .drug-use { font-size: 13px; color: var(--text); margin-top: 5px; line-height: 1.6; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin: 3px 3px 0 0; }
+  .tag.warn { background: rgba(255,68,85,0.2); color: var(--red); }
+  .tag.ok { background: rgba(0,204,119,0.2); color: var(--green); }
+  .tag.info { background: rgba(0,170,255,0.2); color: var(--blue); }
+  .tag.neutral { background: rgba(102,136,170,0.2); color: var(--gray); }
+
+  .summary-box { background: rgba(255,204,0,0.06); border: 1px solid rgba(255,204,0,0.25); border-radius: 12px; padding: 14px; margin-top: 14px; }
+  .summary-box h3 { color: var(--yellow); font-size: 14px; margin-bottom: 8px; }
+  .summary-box p { font-size: 13px; color: #ffeeaa; line-height: 1.7; }
+
+  .disclaimer { font-size: 11px; color: var(--gray); text-align: center; padding: 12px 20px 40px; line-height: 1.6; }
+
+  /* ── Settings ── */
+  #settings { background: var(--bg); }
+  .settings-body { padding: 24px 20px 40px; flex: 1; }
+  .settings-section { margin-bottom: 28px; }
+  .settings-section h2 { font-size: 13px; color: var(--gray); letter-spacing: 1px; margin-bottom: 14px; }
+  .input-field { width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; color: var(--text); font-size: 14px; outline: none; font-family: monospace; transition: border-color 0.2s; }
+  .input-field:focus { border-color: var(--blue); }
+  .input-hint { font-size: 12px; color: var(--gray); margin-top: 8px; line-height: 1.6; }
+  .input-hint a { color: var(--blue); text-decoration: none; }
+  .save-btn { width: 100%; margin-top: 20px; padding: 16px; background: linear-gradient(135deg, #0066cc, #003388); border: none; border-radius: 14px; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .save-btn:active { transform: scale(0.97); }
+
+  /* ── Raw text result (fallback) ── */
+  .raw-result { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-top: 12px; font-size: 13px; line-height: 1.9; color: var(--text); white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HOME ══════════════ -->
+<div class="page" id="home">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <h1>💊 智慧藥單分析</h1>
+      <button class="settings-btn" onclick="showPage('settings')">⚙️</button>
+    </div>
+  </div>
+
+  <div class="home-header">
+    <div class="icon">🏥</div>
+    <h1>AI 藥單助理</h1>
+    <p>拍照即可分析藥品、用途與注意事項</p>
+  </div>
+
+  <div class="api-notice" id="apiNotice">
+    <span>⚠️</span>
+    <span>尚未設定 API Key，請點右上角 ⚙️ 先設定</span>
+  </div>
+
+  <div class="card-grid">
+    <div class="scan-card receipt" onclick="startScan('receipt')">
+      <div class="card-icon">📋</div>
+      <div class="card-title">掃描藥單</div>
+      <div class="card-desc">西藥 / 中藥<br>處方收據分析</div>
+    </div>
+    <div class="scan-card pill" onclick="startScan('pill')">
+      <div class="card-icon">💊</div>
+      <div class="card-title">辨識藥丸</div>
+      <div class="card-desc">拍藥丸照片<br>查詢藥品資訊</div>
+    </div>
+  </div>
+
+  <div class="history-section">
+    <div class="section-title">📌 使用說明</div>
+    <div style="background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; font-size:13px; line-height:2; color:var(--gray);">
+      ① 右上角 ⚙️ 輸入 Gemini API Key（免費申請）<br>
+      ② 選擇「掃描藥單」或「辨識藥丸」<br>
+      ③ 拍照或從相簿選取圖片<br>
+      ④ AI 自動分析每種藥品的用途與注意事項<br><br>
+      <span style="color:#ffcc77;">📱 加到手機桌面：Safari → 分享 → 加入主畫面</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ SCANNER ══════════════ -->
+<div class="page hidden" id="scanner">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <button class="back-btn" onclick="showPage('home')">← 返回</button>
+      <h1 id="scannerTitle">掃描藥單</h1>
+    </div>
+  </div>
+
+  <div class="scanner-body">
+    <div class="photo-zone" id="photoZone" onclick="triggerUpload()">
+      <div class="zone-overlay" id="zoneOverlay">
+        <div class="zone-icon">📸</div>
+        <div class="zone-label">點擊拍照或選擇圖片</div>
+      </div>
+      <img id="previewImg" style="display:none;">
+    </div>
+    <input type="file" id="fileInput" accept="image/*" capture="environment" onchange="onImageSelected(event)">
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="triggerUpload()">📷 更換照片</button>
+      <button class="btn btn-primary" id="analyzeBtn" id="btnColor" onclick="analyze()" disabled>🔍 開始分析</button>
+    </div>
+
+    <div id="resultArea"></div>
+    <div class="disclaimer">⚕️ 本工具僅供參考，實際用藥請遵照醫師指示。如有疑慮請諮詢藥師或醫師。</div>
+  </div>
+</div>
+
+<!-- ══════════════ SETTINGS ══════════════ -->
+<div class="page hidden" id="settings">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <button class="back-btn" onclick="showPage('home')">← 返回</button>
+      <h1>設定</h1>
+    </div>
+  </div>
+
+  <div class="settings-body">
+    <div class="settings-section">
+      <h2>GEMINI API KEY</h2>
+      <input class="input-field" type="password" id="apiKeyInput" placeholder="AIza...（貼上你的 API Key）">
+      <div class="input-hint">
+        免費取得：<a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a><br>
+        登入 Google 帳號 → 點「Get API key」→ 建立新金鑰 → 複製貼上
+      </div>
+      <button class="save-btn" onclick="saveApiKey()">✅ 儲存設定</button>
+    </div>
+
+    <div class="settings-section">
+      <h2>分析語言</h2>
+      <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; font-size:14px; color:var(--green);">
+        ✅ 繁體中文（台灣）
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h2>關於</h2>
+      <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; font-size:13px; color:var(--gray); line-height:1.8;">
+        使用 Google Gemini 1.5 Flash 模型進行圖像分析<br>
+        照片不會被儲存，分析後即刪除<br>
+        版本：1.0.0
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let currentMode = 'receipt'; // 'receipt' | 'pill'
+let currentImageBase64 = null;
+let currentImageMime = 'image/jpeg';
+
+// ── Navigation ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  if (id === 'home') updateApiNotice();
+}
+
+// ── API Key ──
+function getApiKey() { return localStorage.getItem('gemini_api_key') || ''; }
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { alert('請先輸入 API Key'); return; }
+  localStorage.setItem('gemini_api_key', key);
+  updateApiNotice();
+  showPage('home');
+  showToast('✅ API Key 已儲存！');
+}
+function updateApiNotice() {
+  const el = document.getElementById('apiNotice');
+  if (getApiKey()) {
+    el.className = 'api-notice ok';
+    el.innerHTML = '<span>✅</span><span>API Key 已設定，可以開始使用</span>';
+  } else {
+    el.className = 'api-notice';
+    el.innerHTML = '<span>⚠️</span><span>尚未設定 API Key，請點右上角 ⚙️ 先設定</span>';
+  }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#006633;color:#fff;padding:12px 24px;border-radius:24px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.5);';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// ── Scan ──
+function startScan(mode) {
+  if (!getApiKey()) { showPage('settings'); return; }
+  currentMode = mode;
+  currentImageBase64 = null;
+  document.getElementById('scannerTitle').textContent = mode === 'receipt' ? '📋 掃描藥單' : '💊 辨識藥丸';
+  document.getElementById('analyzeBtn').className = 'btn btn-primary' + (mode === 'pill' ? ' green' : '');
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('zoneOverlay').innerHTML = '<div class="zone-icon">📸</div><div class="zone-label">點擊拍照或選擇圖片</div>';
+  document.getElementById('photoZone').className = 'photo-zone';
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('resultArea').innerHTML = '';
+  document.getElementById('fileInput').value = '';
+  showPage('scanner');
+}
+
+function triggerUpload() {
+  document.getElementById('fileInput').click();
+}
+
+function onImageSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  currentImageMime = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    currentImageBase64 = dataUrl.split(',')[1];
+    const img = document.getElementById('previewImg');
+    img.src = dataUrl;
+    img.style.display = 'block';
+    document.getElementById('photoZone').className = 'photo-zone has-image';
+    document.getElementById('zoneOverlay').innerHTML = '<div class="zone-icon">🔄</div><div class="zone-label">點擊更換照片</div>';
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('resultArea').innerHTML = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Analyze ──
+async function analyze() {
+  if (!currentImageBase64) return;
+  const apiKey = getApiKey();
+  if (!apiKey) { showPage('settings'); return; }
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('resultArea').innerHTML = `
+    <div class="result-box analyzing">
+      <div class="result-status"><div class="spinner"></div> AI 正在分析中，請稍候…</div>
+    </div>`;
+
+  const prompt = currentMode === 'receipt'
+    ? `你是一位台灣專業藥師，請仔細分析這張藥單或處方收據的圖片。
+請用繁體中文，以下面的格式輸出：
+
+【藥品清單分析】
+列出每一種藥品，格式：
+藥名：
+用途：（這個藥是治什麼的）
+劑量用法：（從收據上看到的）
+注意事項：（常見副作用或禁忌）
+評估：（正常開立 / 注意 / 需詢問）
+
+【中藥材分析】（如果是中藥處方）
+列出每種藥材及其功效
+
+【整體評估】
+這組藥品的搭配是否合理？有無重複或可能的交互作用？有無需要特別注意的地方？
+
+請盡量詳細，如果圖片不清晰某些部分無法辨認，請說明。`
+    : `你是一位台灣專業藥師，請辨識這張圖片中的藥丸或膠囊。
+請用繁體中文，以下面的格式輸出：
+
+【藥品辨識】
+藥品外觀描述：（顏色、形狀、刻字）
+可能是：（藥品名稱）
+用途：
+常見副作用：
+注意事項：
+
+【重要提醒】
+（安全使用注意事項）
+
+注意：如果無法確定是什麼藥，請說明可能的範圍，並提醒用戶諮詢藥師。`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const body = {
+      contents: [{ parts: [
+        { text: prompt },
+        { inline_data: { mime_type: currentImageMime, data: currentImageBase64 } }
+      ]}],
+      generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || `API 錯誤 ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '無法取得分析結果';
+    renderResult(text);
+
+  } catch (err) {
+    document.getElementById('resultArea').innerHTML = `
+      <div class="result-box" style="border-color:var(--red);">
+        <div class="result-status" style="color:var(--red);">❌ 分析失敗</div>
+        <div style="font-size:13px; color:var(--gray); line-height:1.8;">
+          ${err.message}<br><br>
+          請確認：<br>
+          • API Key 是否正確<br>
+          • 網路連線是否正常<br>
+          • Gemini API 是否已啟用
+        </div>
+      </div>`;
+  } finally {
+    document.getElementById('analyzeBtn').disabled = false;
+  }
+}
+
+function renderResult(text) {
+  // Parse and render the result beautifully
+  const lines = text.split('\n');
+  let html = '<div class="result-box" style="border-color:var(--green);">';
+  html += '<div class="result-status" style="color:var(--green);">✅ 分析完成</div>';
+
+  let inDrugBlock = false;
+  let drugHtml = '';
+  let isWarnDrug = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) { if (inDrugBlock) { html += `<div class="drug-item${isWarnDrug?' warn':' ok'}">${drugHtml}</div>`; drugHtml=''; inDrugBlock=false; } continue; }
+
+    // Section headers
+    if (line.startsWith('【') && line.endsWith('】')) {
+      if (inDrugBlock) { html += `<div class="drug-item${isWarnDrug?' warn':' ok'}">${drugHtml}</div>`; drugHtml=''; inDrugBlock=false; }
+      html += `<h3 style="color:var(--yellow); font-size:15px; font-weight:700; margin:16px 0 8px; padding-bottom:6px; border-bottom:1px solid rgba(255,204,0,0.2);">${line}</h3>`;
+      continue;
+    }
+
+    // Drug name line
+    if (line.startsWith('藥名：') || line.match(/^\d+\.\s*藥名：/)) {
+      if (inDrugBlock) html += `<div class="drug-item${isWarnDrug?' warn':' ok'}">${drugHtml}</div>`;
+      isWarnDrug = false; drugHtml = ''; inDrugBlock = true;
+      const name = line.replace(/^\d+\.\s*/, '').replace('藥名：', '').trim();
+      drugHtml += `<div class="drug-name">${name}</div>`;
+      continue;
+    }
+
+    if (inDrugBlock) {
+      if (line.startsWith('評估：')) {
+        const val = line.replace('評估：','').trim();
+        if (val.includes('注意') || val.includes('詢問')) {
+          isWarnDrug = true;
+          drugHtml += `<span class="tag warn">⚠️ ${val}</span>`;
+        } else {
+          drugHtml += `<span class="tag ok">✅ ${val}</span>`;
+        }
+      } else if (line.startsWith('用途：')) {
+        drugHtml += `<div class="drug-use" style="margin-top:6px;"><b style="color:var(--blue);">用途</b> ${line.replace('用途：','').trim()}</div>`;
+      } else if (line.startsWith('劑量用法：')) {
+        drugHtml += `<div class="drug-meta">💊 ${line.replace('劑量用法：','').trim()}</div>`;
+      } else if (line.startsWith('注意事項：')) {
+        const warn = line.replace('注意事項：','').trim();
+        if (warn && warn !== '無特殊') drugHtml += `<div class="drug-use" style="color:#ffaa77;font-size:12px;">⚠️ ${warn}</div>`;
+      } else {
+        drugHtml += `<div class="drug-use">${line}</div>`;
+      }
+      continue;
+    }
+
+    // 【整體評估】content
+    if (line.includes('❌') || line.includes('不建議') || line.includes('交互作用') || line.includes('警告')) {
+      html += `<div style="background:rgba(255,68,85,0.08); border:1px solid rgba(255,68,85,0.3); border-radius:10px; padding:10px 14px; margin-bottom:8px; font-size:13px; color:#ff8899; line-height:1.7;">${line}</div>`;
+    } else if (line.startsWith('•') || line.startsWith('-') || line.startsWith('·')) {
+      html += `<div style="font-size:13px; color:var(--text); padding:3px 0 3px 12px; border-left:2px solid var(--border); margin-bottom:4px; line-height:1.7;">${line.substring(1).trim()}</div>`;
+    } else {
+      html += `<div style="font-size:13px; color:var(--text); line-height:1.9; margin-bottom:4px;">${line}</div>`;
+    }
+  }
+
+  if (inDrugBlock && drugHtml) html += `<div class="drug-item${isWarnDrug?' warn':' ok'}">${drugHtml}</div>`;
+
+  html += '<div class="disclaimer" style="margin-top:16px; padding:0;">⚕️ 以上分析僅供參考，用藥請遵照醫師處方，有疑問請諮詢藥師。</div>';
+  html += '</div>';
+
+  document.getElementById('resultArea').innerHTML = html;
+}
+
+// ── Init ──
+window.onload = () => {
+  updateApiNotice();
+  const savedKey = getApiKey();
+  if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
+};
+</script>
+</body>
+</html>
