@@ -138,7 +138,7 @@
 
   <div class="home-header">
     <div class="icon">🏥</div>
-    <h1>AI 藥單助理 <span style="font-size:13px;color:#6688aa;font-weight:400;">v1.4</span></h1>
+    <h1>AI 藥單助理 <span style="font-size:13px;color:#6688aa;font-weight:400;">v1.5</span></h1>
     <p>拍照即可分析藥品、用途與注意事項</p>
   </div>
 
@@ -382,7 +382,7 @@ async function analyze() {
         : 'https://api.groq.com/openai/v1/chat/completions';
       const model = isOpenRouter
         ? 'google/gemini-2.0-flash-exp:free'
-        : 'llama-3.2-11b-vision-preview';
+        : 'llama-3.2-90b-vision-preview';
 
       const body = {
         model,
@@ -403,7 +403,7 @@ async function analyze() {
       };
       if (isOpenRouter) {
         headers['HTTP-Referer'] = 'https://elicchiu45.github.io/medicine-scanner';
-        headers['X-Title'] = 'AI藥單助理';
+        headers['X-Title'] = 'AI Medicine Scanner';
       }
 
       const res = await fetch(baseUrl, { method: 'POST', headers, body: JSON.stringify(body) });
