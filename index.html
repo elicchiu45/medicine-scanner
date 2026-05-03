@@ -231,7 +231,7 @@
     <div class="settings-section">
       <h2>關於</h2>
       <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; font-size:13px; color:var(--gray); line-height:1.8;">
-        使用 Google Gemini 2.0 Flash 模型進行圖像分析<br>
+        使用 Google Gemini 2.0 Flash Lite 模型進行圖像分析<br>
         照片不會被儲存，分析後即刪除<br>
         版本：1.0.0
       </div>
@@ -367,7 +367,7 @@ async function analyze() {
 注意：如果無法確定是什麼藥，請說明可能的範圍，並提醒用戶諮詢藥師。`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`;
     const body = {
       contents: [{ parts: [
         { text: prompt },
