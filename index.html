@@ -3,1166 +3,534 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>旗艦版台股看盤系統</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="藥單分析">
+<title>智慧藥單分析</title>
 <style>
-  html, body { margin: 0; padding: 0; background-color: #050914; color: #e0e8f0; font-size: 14px; height: 100vh; overflow-x: hidden; font-family: 'Microsoft JhengHei', Arial, sans-serif; }
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: #02060b; }
-  ::-webkit-scrollbar-thumb { background: #1a3c5e; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #00ccff; }
-
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :root {
-    --bg-dark: #070d19; --bg-title: #0a1f33; --border: #1e3a5f;
-    --up: #ff3344; --dn: #00dd55; --cy: #00ccff; --yl: #ffcc00;
-    --dim: #88aacc; --ma5: #ffff00; --ma20: #00ffff; --ma60: #ff00ff;
+    --bg: #0a0f1e; --panel: #0f1829; --border: #1e3a5f;
+    --blue: #00aaff; --green: #00cc77; --yellow: #ffcc00;
+    --red: #ff4455; --purple: #aa77ff; --gray: #6688aa;
+    --text: #ddeeff; --safe: #0a1f33;
   }
-  * { box-sizing: border-box; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, 'Microsoft JhengHei', sans-serif; overflow: hidden; }
 
-  #search-bar { display: flex; align-items: center; padding: 8px 15px; background: #03060a; border-bottom: 1px solid var(--border); gap: 12px; flex-shrink: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.5); flex-wrap: wrap;}
-  #search-bar input { background: #0a1320; border: 1px solid var(--border); color: #fff; padding: 5px 10px; width: 140px; outline: none; border-radius: 3px; font-size: 15px;}
-  #search-bar button { background: #0a1f33; border: 1px solid var(--border); color: var(--cy); padding: 5px 15px; cursor: pointer; border-radius: 3px; font-weight: bold; transition: 0.2s; white-space: nowrap;}
-  #search-bar button:hover { background: #12304d; }
-  #add-fav-btn { background: #003300 !important; border-color: var(--dn) !important; color: var(--dn) !important; margin-left: 5px;}
-  #quick-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 10px;}
-  .qbtn { background: transparent; border: 1px solid #1a3c5e; color: var(--dim); padding: 4px 8px; font-size: 13px; cursor: pointer; border-radius: 3px; transition: 0.2s;}
-  .qbtn:hover { color: var(--yl); border-color: var(--yl); background: rgba(255,204,0,0.1);}
+  /* ── Pages ── */
+  .page { position: fixed; inset: 0; display: flex; flex-direction: column; overflow-y: auto; transition: transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.35s; }
+  .page.hidden { transform: translateX(100%); opacity: 0; pointer-events: none; }
 
-  /* 主佈局 - 電腦版 */
-  #app { display: flex; gap: 8px; padding: 8px; height: calc(100vh - 48px); overflow: hidden; }
-  .col-l { flex: 6.3; display: flex; flex-direction: column; gap: 8px; min-width: 0; overflow-y: auto; padding-right: 4px; padding-bottom: 10px;}
-  .col-r { flex: 3.7; display: flex; flex-direction: column; gap: 8px; min-width: 0; overflow-y: auto; padding-right: 4px; padding-bottom: 10px;}
+  /* ── Top bar ── */
+  .topbar { background: rgba(10,15,30,0.95); backdrop-filter: blur(10px); padding: env(safe-area-inset-top, 20px) 16px 14px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; flex-shrink: 0; }
+  .topbar-inner { display: flex; align-items: center; gap: 12px; }
+  .back-btn { background: transparent; border: 1px solid var(--border); color: var(--blue); padding: 6px 14px; border-radius: 20px; font-size: 14px; cursor: pointer; }
+  .topbar h1 { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: 1px; }
+  .settings-btn { margin-left: auto; background: transparent; border: none; color: var(--gray); font-size: 22px; cursor: pointer; }
 
-  .panel { border: 1px solid var(--border); background: var(--bg-dark); display: flex; flex-direction: column; position: relative; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); flex-shrink: 0;}
-  .p-head { background: linear-gradient(180deg, #0f253e 0%, #06111f 100%); color: #e0e8f0; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 15px; text-align: center; flex-shrink: 0; font-weight: bold; letter-spacing: 1px;}
-  .p-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px; }
+  /* ── Home ── */
+  #home { background: radial-gradient(ellipse at top, #0a1f3e 0%, var(--bg) 65%); }
+  .home-header { text-align: center; padding: 50px 20px 30px; }
+  .home-header .icon { font-size: 64px; margin-bottom: 12px; }
+  .home-header h1 { font-size: 26px; font-weight: 800; color: var(--blue); letter-spacing: 2px; }
+  .home-header p { font-size: 14px; color: var(--gray); margin-top: 8px; }
 
-  table.dt { width: 100%; border-collapse: collapse; font-size: 15px; text-align: center; }
-  table.dt th { color: var(--dim); padding: 8px 4px; border-bottom: 1px solid var(--border); background: #0a1320; font-weight: normal; position: sticky; top: 0; z-index: 5;}
-  table.dt td { padding: 8px 4px; border-bottom: 1px solid #0f1c2e; }
-  table.dt tr:hover td { background: rgba(255,255,255,0.05); }
+  .api-notice { margin: 0 20px 24px; background: rgba(255,204,0,0.08); border: 1px solid rgba(255,204,0,0.3); border-radius: 12px; padding: 14px 16px; font-size: 13px; color: #ffcc77; display: flex; align-items: flex-start; gap: 8px; }
+  .api-notice.ok { background: rgba(0,204,119,0.08); border-color: rgba(0,204,119,0.3); color: #66ffbb; }
 
-  .legend-bar { display: flex; gap: 15px; padding: 5px 10px; background: #03060a; border-bottom: 1px solid var(--border); font-family: monospace; font-size: 14px; font-weight: bold; flex-shrink: 0; align-items: center; flex-wrap: wrap; }
-  .ind-box-wrap { position: absolute; top: 30px; right: 6px; background: rgba(3,6,10,0.88); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; z-index: 50; user-select: none; min-width: 80px; cursor: move; }
-  .ind-box-title { font-size: 11px; color: var(--dim); padding-bottom: 2px; border-bottom: 1px solid #0f1c2e; margin-bottom: 3px; text-align: center; }
-  .ind-box { font-size: 13px; font-weight: bold; text-align: center; line-height: 1.4; }
-  .svg-wrap { flex: 1; position: relative; width: 100%; height: 100%; min-height: 80px; }
-  svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 20px 30px; }
+  .scan-card { background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 28px 16px; display: flex; flex-direction: column; align-items: center; gap: 14px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+  .scan-card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 0%, rgba(0,170,255,0.12) 0%, transparent 70%); opacity: 0; transition: opacity 0.2s; }
+  .scan-card:active::before { opacity: 1; transform: scale(0.97); }
+  .scan-card:active { transform: scale(0.96); }
+  .scan-card .card-icon { font-size: 46px; }
+  .scan-card .card-title { font-size: 16px; font-weight: 700; color: var(--text); text-align: center; }
+  .scan-card .card-desc { font-size: 12px; color: var(--gray); text-align: center; line-height: 1.5; }
+  .scan-card.receipt { border-color: rgba(0,170,255,0.4); }
+  .scan-card.pill { border-color: rgba(0,204,119,0.4); }
+  .scan-card.receipt .card-title { color: var(--blue); }
+  .scan-card.pill .card-title { color: var(--green); }
 
-  .draggable-panel { position: absolute; top: 50px; left: 15px; width: 180px; background: rgba(5, 11, 20, 0.9); border: 1px solid var(--border); border-radius: 4px; padding: 10px; z-index: 100; box-shadow: 0 4px 20px rgba(0,0,0,0.8); user-select: none; backdrop-filter: blur(3px); }
-  .drag-header { color: #88aacc; font-size: 14px; margin-bottom: 8px; cursor: move; padding-bottom: 4px; border-bottom: 1px solid #1a3c5e; display: flex; justify-content: space-between;}
-  .drag-row { font-size: 14px; margin-bottom: 6px; display: flex; justify-content: space-between;}
+  .history-section { padding: 0 20px 40px; }
+  .section-title { font-size: 13px; color: var(--gray); letter-spacing: 1px; margin-bottom: 12px; }
+  .history-empty { text-align: center; padding: 20px; color: var(--gray); font-size: 13px; }
 
-  #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 51, 102, 0.95); border: 1px solid var(--cy); color: #fff; padding: 15px 30px; border-radius: 4px; display: none; z-index: 9999; text-align:center; font-size: 16px; box-shadow: 0 0 15px var(--cy);}
-  #loading { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.85); z-index: 999; display: none; align-items: center; justify-content: center; color: var(--cy); font-size: 20px; font-weight:bold; letter-spacing: 2px;}
+  /* ── Scanner page ── */
+  #scanner { background: var(--bg); }
+  .scanner-body { padding: 20px; flex: 1; }
 
-  .price-table { width: 100%; border-collapse: collapse; font-size: 15px; font-weight: bold; text-align: center; }
-  .price-table td { padding: 8px 4px; border: 1px solid #1e3a5f; }
-  .pt-label-res { color: #ff3344; background: rgba(255,51,68,0.15); width: 30%; }
-  .pt-label-pull { color: #ffcc00; background: rgba(255,204,0,0.15); width: 30%; }
-  .pt-label-sup { color: #00dd55; background: rgba(0,221,85,0.15); width: 30%; }
-  .pt-val { color: #fff; letter-spacing: 1px; }
+  .photo-zone { border: 2px dashed var(--border); border-radius: 20px; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: pointer; transition: border-color 0.2s; position: relative; overflow: hidden; background: var(--panel); margin-bottom: 20px; }
+  .photo-zone.has-image { border-style: solid; border-color: var(--blue); }
+  .photo-zone img { width: 100%; height: 100%; object-fit: contain; position: absolute; inset: 0; border-radius: 18px; }
+  .photo-zone .zone-overlay { display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 1; }
+  .photo-zone .zone-icon { font-size: 48px; }
+  .photo-zone .zone-label { font-size: 14px; color: var(--gray); }
+  .photo-zone.has-image .zone-overlay { background: rgba(0,0,0,0.55); border-radius: 12px; padding: 8px 16px; backdrop-filter: blur(4px); }
+  .photo-zone.has-image .zone-icon { font-size: 28px; }
+  .photo-zone.has-image .zone-label { font-size: 13px; color: #fff; }
 
-  .adv-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 16px; line-height: 1.6; }
-  .adv-icon { width: 22px; text-align: center; flex-shrink: 0; }
-  
-  .mc-box { flex:1; border: 1px solid var(--border); border-radius: 3px; display:flex; flex-direction:column; background: #03060a;}
-  .mc-title { text-align:center; padding:6px; font-size:14px; color:var(--dim); border-bottom:1px solid var(--border); font-weight:bold;}
-  .mc-svg { height: 90px; position:relative; width:100%; }
-  .mc-info { padding: 8px; font-size:14px; line-height:1.7; }
+  input[type=file] { display: none; }
 
-  .prob-box { flex: 1; border-radius: 4px; padding: 10px 0; text-align: center; border: 1px solid transparent; background: #0a1320;}
-  .prob-title { font-size: 14px; margin-bottom: 4px; }
-  .prob-val { font-size: 28px; font-weight: bold; font-family: Arial, sans-serif;}
+  .btn-row { display: flex; gap: 12px; margin-bottom: 20px; }
+  .btn { flex: 1; padding: 16px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; letter-spacing: 1px; }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary { background: linear-gradient(135deg, #0066cc, #0044aa); color: #fff; border: 1px solid rgba(0,170,255,0.4); }
+  .btn-primary.green { background: linear-gradient(135deg, #006633, #004422); border-color: rgba(0,204,119,0.4); }
+  .btn-secondary { background: var(--panel); border: 1px solid var(--border); color: var(--gray); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
-  #strat-modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.88); z-index:2000; align-items:center; justify-content:center; }
-  .sm-card { background:#080f1e; border:1px solid var(--border); border-radius:6px; padding:16px; margin-bottom:10px; }
-  .sm-card-title { font-size:17px; font-weight:bold; margin-bottom:10px; }
-  .sm-row { display:flex; justify-content:space-between; font-size:15px; margin-bottom:7px; }
-  .sm-label { color:var(--dim); }
-  .sm-val { font-weight:bold; }
+  /* ── Results ── */
+  .result-box { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-top: 4px; }
+  .result-box.analyzing { border-color: var(--blue); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{ border-color: var(--border); } 50%{ border-color: var(--blue); } }
 
-  /* ================= 手機版響應式設計 (RWD) ================= */
-  @media (max-width: 900px) {
-    #app { 
-        flex-direction: column !important; /* 強制上下堆疊 */
-        height: auto !important; 
-        overflow-y: visible !important; 
-    }
-    .col-l, .col-r { 
-        width: 100% !important; 
-        flex: none !important; 
-        overflow-y: visible !important; 
-        padding-right: 0 !important;
-    }
-    div[style*="display: flex; gap: 8px"] { flex-direction: column !important; }
-    .panel { width: 100% !important; flex: none !important; }
-    #search-bar { justify-content: flex-start; padding: 10px; }
-    .draggable-panel { display: none; }
-    #h-price { font-size: 28px !important; }
-    #h-name { font-size: 24px !important; }
-    .p-body[style*="display:flex; gap:6px; padding:6px;"] { flex-direction: column !important; }
-    .p-body[style*="display:flex; padding:0;"] { flex-direction: column !important; }
-    .p-body > div[style*="border-right:1px solid var(--border)"] { border-right: none !important; border-bottom: 1px solid var(--border) !important; }
-  }
+  .result-status { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .spinner { width: 20px; height: 20px; border: 2px solid rgba(0,170,255,0.3); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to{ transform: rotate(360deg); } }
+
+  .result-content { font-size: 14px; line-height: 1.8; color: var(--text); white-space: pre-wrap; }
+  .result-content h3 { color: var(--yellow); font-size: 15px; margin: 14px 0 6px; }
+  .result-content .drug-item { background: rgba(0,170,255,0.06); border-left: 3px solid var(--blue); border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 10px; }
+  .result-content .drug-item.warn { border-color: var(--red); background: rgba(255,68,85,0.06); }
+  .result-content .drug-item.ok { border-color: var(--green); background: rgba(0,204,119,0.06); }
+  .drug-name { font-weight: 700; font-size: 15px; color: var(--blue); }
+  .drug-name.warn { color: var(--red); }
+  .drug-meta { font-size: 12px; color: var(--gray); margin-top: 3px; }
+  .drug-use { font-size: 13px; color: var(--text); margin-top: 5px; line-height: 1.6; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin: 3px 3px 0 0; }
+  .tag.warn { background: rgba(255,68,85,0.2); color: var(--red); }
+  .tag.ok { background: rgba(0,204,119,0.2); color: var(--green); }
+  .tag.info { background: rgba(0,170,255,0.2); color: var(--blue); }
+  .tag.neutral { background: rgba(102,136,170,0.2); color: var(--gray); }
+
+  .summary-box { background: rgba(255,204,0,0.06); border: 1px solid rgba(255,204,0,0.25); border-radius: 12px; padding: 14px; margin-top: 14px; }
+  .summary-box h3 { color: var(--yellow); font-size: 14px; margin-bottom: 8px; }
+  .summary-box p { font-size: 13px; color: #ffeeaa; line-height: 1.7; }
+
+  .disclaimer { font-size: 11px; color: var(--gray); text-align: center; padding: 12px 20px 40px; line-height: 1.6; }
+
+  /* ── Settings ── */
+  #settings { background: var(--bg); }
+  .settings-body { padding: 24px 20px 40px; flex: 1; }
+  .settings-section { margin-bottom: 28px; }
+  .settings-section h2 { font-size: 13px; color: var(--gray); letter-spacing: 1px; margin-bottom: 14px; }
+  .input-field { width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; color: var(--text); font-size: 14px; outline: none; font-family: monospace; transition: border-color 0.2s; }
+  .input-field:focus { border-color: var(--blue); }
+  .input-hint { font-size: 12px; color: var(--gray); margin-top: 8px; line-height: 1.6; }
+  .input-hint a { color: var(--blue); text-decoration: none; }
+  .save-btn { width: 100%; margin-top: 20px; padding: 16px; background: linear-gradient(135deg, #0066cc, #003388); border: none; border-radius: 14px; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .save-btn:active { transform: scale(0.97); }
+
+  /* ── Raw text result (fallback) ── */
+  .raw-result { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-top: 12px; font-size: 13px; line-height: 1.9; color: var(--text); white-space: pre-wrap; }
 </style>
 </head>
 <body>
 
-<div id="search-bar">
-  <span style="color:var(--cy);font-weight:bold; font-size:18px; border-right:1px solid var(--border); padding-right:8px; margin-right:4px;">旗艦分析</span>
-  <input type="text" id="code-input" placeholder="代碼/名稱..." value="3661">
-  <button id="search-btn">查詢</button>
-  <button id="add-fav-btn">+ 自選</button>
-  
-  <div style="margin-left: auto; display:flex; align-items:center; gap:8px;">
-      <span style="color:var(--dim); font-size:12px;">Token:</span>
-      <input type="password" id="api-key-input" placeholder="貼上 API Key..." style="width: 100px; background: #0a1320; border: 1px solid var(--border); color: #fff; padding: 4px 8px; border-radius: 3px;">
-      <button id="verify-api-btn" style="background:#4b0082; color:#fff; border:1px solid #8a2be2; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:12px; white-space:nowrap;">✅ 驗證 API</button>
+<!-- ══════════════ HOME ══════════════ -->
+<div class="page" id="home">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <h1>💊 智慧藥單分析</h1>
+      <button class="settings-btn" onclick="showPage('settings')">⚙️</button>
+    </div>
   </div>
 
-  <div style="width:100%; border-top:1px solid #1e3a5f; margin-top:5px; padding-top:5px;">
-    <div id="quick-btns" style="margin-left:0;"></div>
+  <div class="home-header">
+    <div class="icon">🏥</div>
+    <h1>AI 藥單助理 <span style="font-size:13px;color:#6688aa;font-weight:400;">v1.6</span></h1>
+    <p>拍照即可分析藥品、用途與注意事項</p>
+  </div>
+
+  <div class="api-notice" id="apiNotice">
+    <span>⚠️</span>
+    <span>尚未設定 API Key，請點右上角 ⚙️ 先設定</span>
+  </div>
+
+  <div class="card-grid">
+    <div class="scan-card receipt" onclick="startScan('receipt')">
+      <div class="card-icon">📋</div>
+      <div class="card-title">掃描藥單</div>
+      <div class="card-desc">西藥 / 中藥<br>處方收據分析</div>
+    </div>
+    <div class="scan-card pill" onclick="startScan('pill')">
+      <div class="card-icon">💊</div>
+      <div class="card-title">辨識藥丸</div>
+      <div class="card-desc">拍藥丸照片<br>查詢藥品資訊</div>
+    </div>
+  </div>
+
+  <div class="history-section">
+    <div class="section-title">📌 使用說明</div>
+    <div style="background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; font-size:13px; line-height:2; color:var(--gray);">
+      ① 右上角 ⚙️ 輸入 Gemini API Key（免費申請）<br>
+      ② 選擇「掃描藥單」或「辨識藥丸」<br>
+      ③ 拍照或從相簿選取圖片<br>
+      ④ AI 自動分析每種藥品的用途與注意事項<br><br>
+      <span style="color:#ffcc77;">📱 加到手機桌面：Safari → 分享 → 加入主畫面</span>
+    </div>
   </div>
 </div>
-<div id="toast"></div>
-<div id="loading">📡 正在擷取歷史資料與運算演算法中...</div>
 
-<div id="strat-modal" onclick="if(event.target===this)closeStratModal()">
-  <div style="background:#06101e; border:1px solid #1e4a7a; border-radius:8px; width:640px; max-width:94vw; max-height:85vh; overflow-y:auto; padding:22px; position:relative;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid var(--border); padding-bottom:12px;">
-      <div style="color:var(--yl); font-size:20px; font-weight:bold;">🚀 策略分析選單</div>
-      <button onclick="closeStratModal()" style="background:transparent; border:1px solid #1e3a5f; color:#88aacc; font-size:18px; cursor:pointer; width:32px; height:32px; border-radius:4px; line-height:1;">✕</button>
+<!-- ══════════════ SCANNER ══════════════ -->
+<div class="page hidden" id="scanner">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <button class="back-btn" onclick="showPage('home')">← 返回</button>
+      <h1 id="scannerTitle">掃描藥單</h1>
     </div>
-    <div id="strat-content"><div style="color:var(--dim); text-align:center; padding:20px;">請先查詢股票後再執行策略分析</div></div>
+  </div>
+
+  <div class="scanner-body">
+    <div class="photo-zone" id="photoZone" onclick="triggerUpload()">
+      <div class="zone-overlay" id="zoneOverlay">
+        <div class="zone-icon">📸</div>
+        <div class="zone-label">點擊拍照或選擇圖片</div>
+      </div>
+      <img id="previewImg" style="display:none;">
+    </div>
+    <input type="file" id="fileInput" accept="image/*" capture="environment" onchange="onImageSelected(event)">
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="triggerUpload()">📷 更換照片</button>
+      <button class="btn btn-primary" id="analyzeBtn" id="btnColor" onclick="analyze()" disabled>🔍 開始分析</button>
+    </div>
+
+    <div id="resultArea"></div>
+    <div class="disclaimer">⚕️ 本工具僅供參考，實際用藥請遵照醫師指示。如有疑慮請諮詢藥師或醫師。</div>
   </div>
 </div>
 
-<div id="app">
-  <div class="col-l">
-    <div class="panel" style="padding: 12px 10px; flex-direction:row; justify-content:space-between; align-items:center; background: #03060a; flex-wrap: wrap; gap:10px;">
-        <div style="display:flex; align-items:baseline; gap:8px; flex-wrap: wrap;">
-            <span id="h-name" style="font-size:28px; font-weight:bold;">--</span>
-            <span id="h-code" style="color:var(--dim); font-size: 16px;">(--)</span>
-            <span id="h-price" style="font-size:32px; font-weight:bold; margin-left:10px;">--</span>
-            <span id="h-chg" style="font-size:18px; font-weight:bold;">--</span>
-        </div>
-        <div style="display:flex; gap:15px; font-size:13px; color:var(--dim); flex-wrap: wrap;">
-            <div style="text-align:right;">成交量<br><span id="h-vol" style="color:#fff; font-weight:bold; font-size:18px;">--</span></div>
-            <div style="text-align:right; border-left:1px solid var(--border); padding-left:15px;">單量<br><span id="h-svol" style="color:#fff; font-weight:bold; font-size:18px;">--</span></div>
-            <div style="text-align:right; border-left:1px solid var(--border); padding-left:15px;">買進<br><span id="h-bid" class="up" style="font-weight:bold; font-size:18px; color:var(--up)">--</span></div>
-            <div style="text-align:right;">賣出<br><span id="h-ask" class="dn" style="font-weight:bold; font-size:18px; color:var(--dn)">--</span></div>
-        </div>
-    </div>
-
-    <div class="panel" style="min-height: 280px; position:relative;">
-      <div class="legend-bar">
-        <div style="color:#fff;">日線</div>
-        <div style="color:var(--ma5);">MA5 <span id="l-ma5">--</span></div>
-        <div style="color:var(--ma20);">MA20 <span id="l-ma20">--</span></div>
-        <div style="color:var(--ma60);">MA60 <span id="l-ma60">--</span></div>
-        <div style="color:var(--dim);">上軌 <span id="l-bb-up">--</span> 中軌 <span id="l-bb-mid">--</span> 下軌 <span id="l-bb-dn">--</span></div>
-      </div>
-      <div class="svg-wrap"><svg id="svg-kline"></svg></div>
-      <div id="drag-panel" class="draggable-panel">
-          <div class="drag-header" id="drag-header"><span>≡ 智慧診斷</span></div>
-          <div id="drag-content"><div style="color:var(--dim); text-align:center; padding: 10px 0;">載入中...</div></div>
-      </div>
-    </div>
-    
-    <div style="display:flex; flex-direction:column; gap:6px;">
-        <div class="panel" style="height: 140px; position:relative;">
-          <div class="legend-bar" style="padding:3px 10px;">
-            <div style="color:var(--dim);">成交量</div><div style="color:#fff; margin-left:10px;"><span id="l-v-vol">--</span> 張</div><div style="color:var(--ma5); margin-left:15px;">MA5 <span id="l-v-ma5">--</span></div>
-          </div>
-          <div class="svg-wrap"><svg id="svg-vol"></svg></div>
-          <div class="ind-box-wrap" id="box-vol-wrap">
-            <div class="ind-box-title" id="box-vol-title">量能趨勢</div>
-            <div class="ind-box" id="box-vol" style="color:var(--dim)">--</div>
-          </div>
-        </div>
-        <div class="panel" style="height: 150px; position:relative;">
-          <div class="legend-bar" style="padding:3px 10px;">
-            <div style="color:var(--dim);">KD (9,3,3)</div><div style="color:var(--up); margin-left:15px;">K <span id="l-k">--</span></div><div style="color:var(--ma20);">D <span id="l-d">--</span></div>
-          </div>
-          <div class="svg-wrap"><svg id="svg-kd"></svg></div>
-          <div class="ind-box-wrap" id="box-kd-wrap">
-            <div class="ind-box-title" id="box-kd-title">KD趨勢</div>
-            <div class="ind-box" id="box-kd" style="color:var(--dim)">--</div>
-          </div>
-        </div>
-        <div class="panel" style="height: 150px; position:relative;">
-          <div class="legend-bar" style="padding:3px 10px;">
-            <div style="color:var(--dim);">MACD (12,26,9)</div><div style="color:var(--up); margin-left:15px;">DIF <span id="l-dif">--</span></div><div style="color:var(--ma5);">MACD <span id="l-macd">--</span></div><div id="l-osc-lbl" style="color:var(--up);">OSC <span id="l-osc">--</span></div>
-          </div>
-          <div class="svg-wrap"><svg id="svg-macd"></svg></div>
-          <div class="ind-box-wrap" id="box-macd-wrap">
-            <div class="ind-box-title" id="box-macd-title">MACD趨勢</div>
-            <div class="ind-box" id="box-macd" style="color:var(--dim)">--</div>
-          </div>
-        </div>
-    </div>
-
-    <div style="display: flex; gap: 8px;">
-        <div class="panel" style="flex: 2.2;">
-            <div class="p-head">多週期趨勢分析</div>
-            <div class="p-body" style="display:flex; gap:6px; padding:6px;">
-                <div class="mc-box">
-                    <div class="mc-title">60分K (短線)</div>
-                    <div class="mc-svg"><svg id="svg-mc-60"></svg></div>
-                    <div class="mc-info" id="mc-info-60">--</div>
-                </div>
-                <div class="mc-box">
-                    <div class="mc-title">日K (中線)</div>
-                    <div class="mc-svg"><svg id="svg-mc-d"></svg></div>
-                    <div class="mc-info" id="mc-info-d">--</div>
-                </div>
-                <div class="mc-box">
-                    <div class="mc-title">週K (長線)</div>
-                    <div class="mc-svg"><svg id="svg-mc-w"></svg></div>
-                    <div class="mc-info" id="mc-info-w">--</div>
-                </div>
-            </div>
-        </div>
-        <div class="panel" style="flex: 1;">
-            <div class="p-head">關鍵價位</div>
-            <div class="p-body" style="display:flex; flex-direction:column; justify-content:center; padding:12px;">
-                <table class="price-table">
-                    <tr><td class="pt-label-res">壓力區</td><td class="pt-val" id="v-res">--</td></tr>
-                    <tr><td class="pt-label-pull">回檔區</td><td class="pt-val" id="v-pull" style="color:var(--yl)">--</td></tr>
-                    <tr><td class="pt-label-sup">支撐區</td><td class="pt-val" id="v-sup">--</td></tr>
-                </table>
-                <table class="price-table" style="margin-top:12px; font-size:15px; color:var(--dim);">
-                    <tr><td style="width:35%; border:none; text-align:right; padding:4px 10px;">跌破防守</td><td style="border:none; text-align:left; color:#fff; padding:4px;" id="v-def">--</td></tr>
-                    <tr><td style="width:35%; border:none; text-align:right; padding:4px 10px;">強勢關鍵</td><td style="border:none; text-align:left; color:#fff; padding:4px;" id="v-brk">--</td></tr>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <div style="display: flex; gap: 8px; min-height: 250px;">
-        <div class="panel" style="flex: 1.3;">
-          <div class="p-head">型態分析</div>
-          <div class="p-body" style="display:flex; padding:0;">
-            <div style="flex:1; border-right:1px solid var(--border); display:flex; flex-direction:column; padding:12px;">
-                <div style="text-align:center; color:var(--dim); font-size:18px; margin-bottom:12px; font-weight:bold;">W底分析</div>
-                <div id="pat-w-conc" style="font-size:18px; margin-bottom:12px; text-align:center;">結論：--</div>
-                <div style="width:100%; height:90px; position:relative;"><svg id="svg-pat-w"></svg></div>
-                <div id="pat-w-rsn" style="font-size:15px; color:var(--dim); margin-top:12px; line-height:1.6; text-align:center;">理由：--</div>
-            </div>
-            <div style="flex:1; display:flex; flex-direction:column; padding:12px;">
-                <div style="text-align:center; color:var(--dim); font-size:18px; margin-bottom:12px; font-weight:bold;">M頭分析</div>
-                <div id="pat-m-conc" style="font-size:18px; margin-bottom:12px; text-align:center;">結論：--</div>
-                <div style="width:100%; height:90px; position:relative;"><svg id="svg-pat-m"></svg></div>
-                <div id="pat-m-rsn" style="font-size:15px; color:var(--dim); margin-top:12px; line-height:1.6; text-align:center;">理由：--</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel" style="flex: 1;">
-          <div class="p-head">主力燈號</div>
-          <div class="p-body" style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:20px;">
-            <div id="sig-circle" style="width:65px;height:65px;border-radius:50%;background:#ff3344; display:flex;align-items:center;justify-content:center; box-shadow: 0 0 15px #ff3344;"></div>
-            <div id="sig-text" style="font-size:24px; text-align:center; font-weight:bold; color:var(--up);">--</div>
-            <div id="sig-sub" style="font-size:16px; text-align:center; color:#fff; line-height:1.6;">--</div>
-          </div>
-        </div>
-
-        <div class="panel" style="flex: 1;">
-          <div class="p-head">短線勝率 (AI強化版)</div>
-          <div class="p-body" style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0px; padding:15px;">
-            <div style="position:relative; width:100%; height:90px;">
-              <svg id="svg-gauge" width="100%" height="100%" style="position:absolute;top:0;left:0;"></svg>
-            </div>
-            <div id="g-val" style="font-size:42px; color:var(--up); font-weight:bold; font-family:Arial; margin-top:-20px;">--%</div>
-            <div id="g-desc" style="font-size:17px; color:var(--yl); margin-top:8px; font-weight:bold;">--</div>
-          </div>
-        </div>
+<!-- ══════════════ SETTINGS ══════════════ -->
+<div class="page hidden" id="settings">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <button class="back-btn" onclick="showPage('home')">← 返回</button>
+      <h1>設定</h1>
     </div>
   </div>
 
-  <div class="col-r">
-    
-    <div style="display: flex; gap: 8px; min-height: 280px;">
-        <div class="panel" style="flex: 1.5;">
-            <div class="p-head" style="background: linear-gradient(180deg, #1c2e4a 0%, #0a1320 100%);">技術分析總覽</div>
-            <div class="p-body" id="tech-overview" style="padding: 0; display:flex; flex-direction:column;">
-                </div>
-        </div>
-        <div class="panel" style="flex: 1;">
-            <div class="p-head">主力進出 (張)</div>
-            <div class="p-body" style="padding:0; overflow-y:auto;">
-                <table class="dt" id="t-main"></table>
-            </div>
-        </div>
+  <div class="settings-body">
+    <div class="settings-section">
+      <h2>API KEY 設定</h2>
+      <input class="input-field" type="password" id="apiKeyInput" placeholder="貼上你的 API Key">
+      <div class="input-hint">
+        支援以下三種 Key：<br>
+        🔵 <strong>OpenRouter</strong>（推薦）— <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>，免費有 Gemini 模型，sk-or- 開頭<br>
+        🟡 <strong>Groq</strong> — <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a>，免費速度快，gsk_ 開頭<br>
+        ⚪ <strong>Google Gemini</strong> — <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>，AIza 開頭
+      </div>
+      <button class="save-btn" onclick="saveApiKey()">✅ 儲存設定</button>
     </div>
 
-    <div style="display: flex; gap: 8px;">
-        <div class="panel" style="flex: 1.2;">
-          <div class="p-head">指標總覽</div>
-          <div class="p-body" style="padding:0;">
-              <table class="dt" id="t-ind" style="font-size:14px; line-height: 1.5;">
-                  </table>
-          </div>
-        </div>
-
-        <div class="panel" style="flex: 1.5;">
-          <div class="p-head">操作建議</div>
-          <div class="p-body" id="p-adv-new" style="padding:15px 10px; display:flex; flex-direction:column; gap:8px;">
-              </div>
-        </div>
-    </div>
-
-    <div class="panel" style="border: 1px solid #ff3333; border-radius: 6px;">
-        <div class="p-head" style="background:none; border:none; color:var(--yl); font-size:18px; padding-top:12px;">🔥 漲跌機率預測 (AI模型)</div>
-        <div class="p-body" style="display:flex; gap:8px; padding:12px;">
-            <div class="prob-box" style="border: 1px solid rgba(255,51,68,0.3); border-top:3px solid var(--up);">
-                <div class="prob-title" style="color:var(--up);">上漲機率</div>
-                <div class="prob-val" style="color:var(--up);" id="p-up">--%</div>
-            </div>
-            <div class="prob-box" style="border: 1px solid rgba(0,221,85,0.3); border-top:3px solid var(--dn);">
-                <div class="prob-title" style="color:var(--dn);">下跌機率</div>
-                <div class="prob-val" style="color:var(--dn);" id="p-dn">--%</div>
-            </div>
-            <div class="prob-box" style="border: 1px solid rgba(255,204,0,0.3); border-top:3px solid var(--yl);">
-                <div class="prob-title" style="color:var(--yl);">震盪機率</div>
-                <div class="prob-val" style="color:var(--yl);" id="p-fl">--%</div>
-            </div>
-        </div>
-        <div id="pie-conc" style="text-align:left; padding:0 15px 15px 15px; font-size:14px; color:var(--dim); line-height: 1.6;">預測結論：分析中...</div>
-    </div>
-
-    <div class="panel" style="border-color: #aa8800; margin-top:auto;">
-      <button onclick="triggerBackend()" style="width:100%; background:linear-gradient(180deg, #332200 0%, #110a00 100%); border:none; border-bottom:1px solid #aa8800; color:#ffcc00; padding:12px; font-size:16px; font-weight:bold; cursor:pointer; letter-spacing: 1px; transition:0.2s;" onmouseover="this.style.background='linear-gradient(180deg, #4a3200 0%, #1a1000 100%)'" onmouseout="this.style.background='linear-gradient(180deg, #332200 0%, #110a00 100%)'">
-        ⚡ 股海尋寶系統 (開啟 Python 選單)
-      </button>
-      <div style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
-        <button onclick="triggerStrategy()" style="width:100%; background:linear-gradient(180deg, #aa1111 0%, #660000 100%); border:1px solid #ff3333; color:#fff; padding:10px; font-size:16px; cursor:pointer; font-weight:bold; letter-spacing: 2px; border-radius:4px;">🚀 策略分析選單</button>
-        <button onclick="window.open('ai_analyzer.html?stock=' + document.getElementById('code-input').value, '_blank')" style="width:100%; background:linear-gradient(180deg, #0f253e 0%, #0a1f33 100%); border:1px solid var(--cy); color:var(--cy); padding:10px; font-size:16px; cursor:pointer; font-weight:bold; letter-spacing: 1px; border-radius:4px; transition:0.2s;" onmouseover="this.style.background='linear-gradient(180deg, #163659 0%, #0f253e 100%)'" onmouseout="this.style.background='linear-gradient(180deg, #0f253e 0%, #0a1f33 100%)'">🤖 十組專業的 AI 股票分析指令</button>
+    <div class="settings-section">
+      <h2>分析語言</h2>
+      <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; font-size:14px; color:var(--green);">
+        ✅ 繁體中文（台灣）
       </div>
     </div>
 
+    <div class="settings-section">
+      <h2>關於</h2>
+      <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; font-size:13px; color:var(--gray); line-height:1.8;">
+        使用 Google Gemini 1.5 Flash 模型進行圖像分析<br>
+        照片不會被儲存，分析後即刪除<br>
+        版本：1.0.0
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
-// ==========================================
-// 通用拖曳邏輯 (支援多個獨立方塊)
-// ==========================================
-function makeDraggable(elmnt, handle) {
-  if (!elmnt) return;
-  var pos1=0, pos2=0, pos3=0, pos4=0;
-  var dragObj = handle || elmnt;
-  dragObj.onmousedown = function(e) {
-    e = e || window.event; e.preventDefault();
-    pos3=e.clientX; pos4=e.clientY;
-    document.onmouseup = function() { document.onmouseup=null; document.onmousemove=null; };
-    document.onmousemove = function(e) {
-      e = e || window.event; e.preventDefault();
-      pos1=pos3-e.clientX; pos2=pos4-e.clientY; pos3=e.clientX; pos4=e.clientY;
-      elmnt.style.right='auto'; elmnt.style.bottom='auto';
-      elmnt.style.top=(elmnt.offsetTop-pos2)+"px"; elmnt.style.left=(elmnt.offsetLeft-pos1)+"px";
-    };
+// ── State ──
+let currentMode = 'receipt'; // 'receipt' | 'pill'
+let currentImageBase64 = null;
+let currentImageMime = 'image/jpeg';
+
+// ── Navigation ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  if (id === 'home') updateApiNotice();
+}
+
+// ── API Key ──
+function getApiKey() { return localStorage.getItem('gemini_api_key') || ''; }
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { alert('請先輸入 API Key'); return; }
+  localStorage.setItem('gemini_api_key', key);
+  updateApiNotice();
+  showPage('home');
+  showToast('✅ API Key 已儲存！');
+}
+function updateApiNotice() {
+  const el = document.getElementById('apiNotice');
+  if (getApiKey()) {
+    el.className = 'api-notice ok';
+    el.innerHTML = '<span>✅</span><span>API Key 已設定，可以開始使用</span>';
+  } else {
+    el.className = 'api-notice';
+    el.innerHTML = '<span>⚠️</span><span>尚未設定 API Key，請點右上角 ⚙️ 先設定</span>';
+  }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#006633;color:#fff;padding:12px 24px;border-radius:24px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.5);';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// ── Scan ──
+function startScan(mode) {
+  if (!getApiKey()) { showPage('settings'); return; }
+  currentMode = mode;
+  currentImageBase64 = null;
+  document.getElementById('scannerTitle').textContent = mode === 'receipt' ? '📋 掃描藥單' : '💊 辨識藥丸';
+  document.getElementById('analyzeBtn').className = 'btn btn-primary' + (mode === 'pill' ? ' green' : '');
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('zoneOverlay').innerHTML = '<div class="zone-icon">📸</div><div class="zone-label">點擊拍照或選擇圖片</div>';
+  document.getElementById('photoZone').className = 'photo-zone';
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('resultArea').innerHTML = '';
+  document.getElementById('fileInput').value = '';
+  showPage('scanner');
+}
+
+function triggerUpload() {
+  document.getElementById('fileInput').click();
+}
+
+function onImageSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  currentImageMime = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    currentImageBase64 = dataUrl.split(',')[1];
+    const img = document.getElementById('previewImg');
+    img.src = dataUrl;
+    img.style.display = 'block';
+    document.getElementById('photoZone').className = 'photo-zone has-image';
+    document.getElementById('zoneOverlay').innerHTML = '<div class="zone-icon">🔄</div><div class="zone-label">點擊更換照片</div>';
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('resultArea').innerHTML = '';
   };
-}
-makeDraggable(document.getElementById("drag-panel"), document.getElementById("drag-header"));
-makeDraggable(document.getElementById("box-vol-wrap"),  document.getElementById("box-vol-title"));
-makeDraggable(document.getElementById("box-kd-wrap"),   document.getElementById("box-kd-title"));
-makeDraggable(document.getElementById("box-macd-wrap"), document.getElementById("box-macd-title"));
-
-function showToast(m, isError=false) { const t = document.getElementById('toast'); t.innerHTML = m; t.style.display = 'block'; t.style.borderColor = isError ? 'var(--up)' : 'var(--cy)'; setTimeout(() => t.style.display='none', 3000); }
-
-function triggerBackend() {
-    showToast('🚀 開啟 Python 選單視窗中...');
-    fetch('/api/run_strategy', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' })
-        .then(r => r.ok ? null : showToast('⚠️ 請確認是透過 啟動台股儀表板.bat 開啟', true))
-        .catch(() => showToast('⚠️ 手機網頁版僅供看盤，尋寶功能請用電腦版開啟', true));
+  reader.readAsDataURL(file);
 }
 
-function triggerStrategy() {
-    const modal = document.getElementById('strat-modal');
-    modal.style.display = 'flex';
-    if(!window._currentData) {
-        document.getElementById('strat-content').innerHTML = '<div style="color:var(--dim); text-align:center; padding:20px;">請先查詢股票後再執行策略分析</div>';
-        return;
-    }
-    const d = window._currentData;
-    const last = d.hist[d.hist.length-1];
-    const price = last.c;
-    const atr = d.atr;
-    const n = d.hist.length;
-    const ma5v = d.ma5[n-1], ma20v = d.ma20[n-1], ma60v = d.ma60[n-1];
-    const kdV = d.kd[n-1] || {k:50,d:50};
-    const macdV = d.macd[n-1] || {dif:0,dea:0,osc:0};
-    const rsiV = d.rsi[n-1] || 50;
-    const rHigh = Math.max(...d.hist.slice(-20).map(x=>x.h));
-    const rLow  = Math.min(...d.hist.slice(-20).map(x=>x.l));
-    const isBull = ma5v > ma20v && ma20v > ma60v;
-    const kdGold = kdV.k > kdV.d && kdV.k < 80;
-    const macdUp  = macdV.osc > 0;
+// ── Analyze ──
+async function analyze() {
+  if (!currentImageBase64) return;
+  const apiKey = getApiKey();
+  if (!apiKey) { showPage('settings'); return; }
 
-    // 停損基準：2×ATR
-    const stop1 = (price - 2*atr).toFixed(1);
-    const stop2 = (rLow * 0.985).toFixed(1);
-
-    // 目標：前高 or +1.5×ATR
-    const tgt1 = (price + 1.5*atr).toFixed(1);
-    const tgt2 = rHigh.toFixed(1);
-    const tgt3 = (price + 3*atr).toFixed(1);
-
-    const volRatio = last.v / (d.hist.slice(-10,n-1).reduce((a,b)=>a+b.v,0)/9 || 1);
-    const volTag = volRatio > 1.3 ? '<span style="color:var(--up)">量增</span>' : (volRatio < 0.7 ? '<span style="color:var(--dn)">量縮</span>' : '量平');
-
-    const s1suitable = isBull && kdGold && rsiV > 45 && rsiV < 75;
-    const s2suitable = !isBull && rsiV < 35 && price < ma20v;
-    const s3suitable = !isBull && kdV.k < kdV.d && macdV.osc < 0 && rsiV < 40;
-
-    function sCard(tag, color, title, cond, entry, tgt, stop, rationale) {
-        const condColor = cond ? '#00cc55' : '#888';
-        const condText = cond ? '✅ 符合條件' : '⚠️ 不符合現況';
-        return `<div class="sm-card" style="border-color:${color}40; opacity:${cond?1:0.6}">
-            <div class="sm-card-title" style="color:${color}">${tag} ${title} <span style="font-size:13px; color:${condColor}; margin-left:10px;">${condText}</span></div>
-            <div class="sm-row"><span class="sm-label">進場點</span><span class="sm-val" style="color:#fff">${entry}</span></div>
-            <div class="sm-row"><span class="sm-label">目標價</span><span class="sm-val" style="color:var(--up)">${tgt}</span></div>
-            <div class="sm-row"><span class="sm-label">停損點</span><span class="sm-val" style="color:var(--dn)">${stop} (2×ATR=${(2*atr).toFixed(1)})</span></div>
-            <div style="font-size:14px; color:var(--dim); margin-top:8px; line-height:1.7; padding-top:8px; border-top:1px solid #1e3a5f;">${rationale}</div>
-        </div>`;
-    }
-
-    // 技術警報偵測
-    const bbN = d.hist.slice(-20).map(x => x.c);
-    const bbMid20 = bbN.reduce((a,b)=>a+b,0)/20;
-    const bbStd20 = Math.sqrt(bbN.reduce((a,b)=>a+Math.pow(b-bbMid20,2),0)/20);
-    const bbWidth = (bbStd20*4 / bbMid20 * 100).toFixed(1);
-    const avgVol10 = d.hist.slice(-10).reduce((a,b)=>a+b.v,0)/10;
-    const todayVolRatio = (last.v / avgVol10).toFixed(2);
-    const rsiDivBull = rsiV > 40 && !isBull && d.rsi[n-3] && rsiV > d.rsi[n-3];
-    const rsiDivBear = rsiV < 60 && isBull && d.rsi[n-3] && rsiV < d.rsi[n-3];
-    const ma5Crossed = d.ma5[n-2] && d.ma20[n-2] && ((d.ma5[n-2]<=d.ma20[n-2] && ma5v>ma20v) || (d.ma5[n-2]>=d.ma20[n-2] && ma5v<ma20v));
-    const alerts = [];
-    if(parseFloat(todayVolRatio) >= 2) alerts.push({lv:'🔴', msg:`成交量爆量！今日量 ${last.v} 張，是均量 ${Math.floor(avgVol10)} 的 ${todayVolRatio}x，主力動向需關注`});
-    if(parseFloat(bbWidth) < 3.5) alerts.push({lv:'🟡', msg:`布林通道收窄（寬度${bbWidth}%），市場蓄勢中，即將出現方向性突破`});
-    if(ma5Crossed) alerts.push({lv:'🔴', msg:`均線交叉信號！MA5 ${ma5v>ma20v?'穿越向上':'穿越向下'} MA20，趨勢${ma5v>ma20v?'轉多':'轉空'}確認中`});
-    if(rsiDivBull) alerts.push({lv:'🟢', msg:`RSI底背離跡象（RSI ${rsiV.toFixed(1)}上揚但股價仍弱），可能低點將至`});
-    if(rsiDivBear) alerts.push({lv:'🟡', msg:`RSI頂背離跡象（RSI ${rsiV.toFixed(1)}回落但股價仍強），留意高點風險`});
-    if(rsiV >= 80) alerts.push({lv:'🔴', msg:`RSI超買區間（${rsiV.toFixed(1)}），強勢但短線過熱，宜減碼或觀望`});
-    if(rsiV <= 25) alerts.push({lv:'🟢', msg:`RSI超賣區間（${rsiV.toFixed(1)}），短線超賣，可留意反彈契機`});
-    const alertHtml = alerts.length ? alerts.map(a => `<div style="padding:7px 10px; margin-bottom:5px; background:#030a14; border-left:3px solid ${a.lv==='🔴'?'#ff3344':a.lv==='🟡'?'#ffaa00':'#00cc55'}; border-radius:2px; font-size:14px; line-height:1.6;">${a.lv} ${a.msg}</div>`).join('') : `<div style="color:var(--dim); font-size:14px; padding:8px;">目前無明顯技術警報信號</div>`;
-
-    document.getElementById('strat-content').innerHTML = `
-        <div style="background:#030d1a; border:1px solid #1a3c5e; border-radius:5px; padding:12px 14px; margin-bottom:14px;">
-          <div style="color:var(--yl); font-size:15px; font-weight:bold; margin-bottom:8px;">📋 技術警報 (${alerts.length} 則)</div>
-          ${alertHtml}
-        </div>
-        <div style="display:flex; gap:12px; padding:10px 0 16px 0; border-bottom:1px solid var(--border); margin-bottom:14px; font-size:15px; flex-wrap:wrap;">
-            <div>現價：<span style="color:#fff; font-weight:bold">${price.toFixed(2)}</span></div>
-            <div>ATR(14)：<span style="color:var(--yl)">${atr.toFixed(2)}</span></div>
-            <div>RSI(14)：<span style="color:${rsiV>70?'var(--up)':rsiV<30?'var(--dn)':'#fff'}">${rsiV.toFixed(1)}</span></div>
-            <div>KD：K<span style="color:var(--up)">${kdV.k.toFixed(1)}</span> D<span style="color:var(--ma20)">${kdV.d.toFixed(1)}</span></div>
-            <div>量比：${volTag}</div>
-        </div>
-        ${sCard('🟢','#00cc55','突破追漲策略', s1suitable,
-            `${(rHigh*0.995).toFixed(1)} 放量突破前高時進`,
-            `第一目標 ${tgt2}，第二目標 ${tgt3}`,
-            stop1,
-            `適用於多頭排列且KD黃金交叉，RSI未過熱(${rsiV.toFixed(0)})。突破 ${rHigh.toFixed(1)} 並有量配合才進場，否則勿追。`)}
-        ${sCard('🟡','#ffcc00','回檔做多策略', s2suitable,
-            `${(ma20v||price).toFixed(1)} 附近止穩翻紅`,
-            `目標 MA5 ${(ma5v||price).toFixed(1)}，前高 ${tgt1}`,
-            stop2,
-            `適用於回測MA20或超賣(RSI=${rsiV.toFixed(0)})，等待K棒收紅確認支撐後介入。停損設近期低點 ${rLow.toFixed(1)} 下方。`)}
-        ${sCard('🔴','#ff3344','高檔空頭策略', s3suitable,
-            `${(rHigh*0.98).toFixed(1)} 反彈無力時放空`,
-            `目標 ${(price - 1.5*atr).toFixed(1)}，延伸 ${(price-3*atr).toFixed(1)}`,
-            `${(price + 1.5*atr).toFixed(1)} (反彈停損)`,
-            `適用於空頭排列且MACD翻黑(OSC=${(macdV.osc*2).toFixed(2)})，RSI弱勢(${rsiV.toFixed(0)})。反彈至壓力區無法突破時切入，嚴守停損。`)}
-        <div style="font-size:13px; color:#557799; text-align:center; margin-top:8px;">※ 本策略為技術分析建議，僅供參考，不構成投資建議，買賣自負。</div>
-    `;
-}
-function closeStratModal() { document.getElementById('strat-modal').style.display = 'none'; }
-
-// 股票名稱對照表 (預設熱門股，稍後由程式自動從 API 擴充全市場)
-const nameDict = {
-  '2002':'中鋼','2303':'聯電','2317':'鴻海','2330':'台積電','2345':'智邦','2347':'聯強',
-  '2354':'鴻準','2357':'華碩','2360':'致茂','2376':'技嘉','2379':'瑞昱',
-  '2382':'廣達','2395':'研華','2408':'南亞科','2412':'中華電','2454':'聯發科',
-  '2474':'可成','2492':'華新科','2603':'長榮','2609':'陽明','2615':'萬海',
-  '2633':'台灣高鐵','2637':'慧洋-KY','2727':'王品','2801':'彰銀','2812':'台中銀',
-  '2823':'中壽','2880':'華南金','2881':'富邦金','2882':'國泰金','2883':'開發金',
-  '2884':'玉山金','2885':'元大金','2886':'兆豐金','2887':'台新金','2890':'永豐金',
-  '2891':'中信金','2892':'第一金','3008':'大立光','3034':'聯詠','3045':'台灣大',
-  '3481':'群創','3661':'世芯-KY','3711':'日月光投控','4904':'遠傳','4938':'和碩',
-  '5871':'中租-KY','5876':'上海商銀','5880':'合庫金','6415':'矽力-KY','6505':'台塑化',
-  '6669':'緯穎','6770':'力積電','8046':'南電','0050':'台灣50','0056':'元大高股息',
-  '00878':'國泰永續高股息','00900':'富邦特選高股息','2383':'台光電','2449':'京元電子',
-  '3231':'緯創','3324':'雙鴻','3017':'奇鋐','1519':'華城','1503':'士電','3443':'創意',
-  '3293':'鈊象','2301':'光寶科','2308':'台達電','2324':'仁寶','2353':'宏碁','2356':'英業達',
-  '2458':'義隆','3035':'智原','3529':'力旺','3653':'健策','5269':'祥碩','6643':'M31',
-  '8299':'群聯','2618':'長榮航','2610':'華航','00403A':'主動統一升級50','00981A':'主動統一台股增長'
-};
-
-// --- 自動載入全市場最新字典 (網頁開啟時自動執行) ---
-async function fetchFullStockDict() {
-    try {
-        const r = await fetch("https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo");
-        const j = await r.json();
-        if(j.data) {
-            j.data.forEach(item => {
-                if(item.stock_id && item.stock_name) {
-                    nameDict[item.stock_id] = item.stock_name;
-                }
-            });
-            console.log("✅ 全市場股票字典載入完成");
-        }
-    } catch(e) {
-        console.log("全市場字典載入失敗，將使用預設字典", e);
-    }
-}
-
-// 期貨代碼對應表
-const futuresDict = {
-  'TX':'台指期','MTX':'小台指','TE':'電子期','TF':'金融期',
-  'NF':'日經期','XO':'MSCI期','GTF':'櫃買期','TXO':'台指選擇權',
-  'ZEF':'富時期','EXF':'電子選擇權'
-};
-// 個股期貨代碼
-const stockFutDict = {
-  'ACE':'宏達電期','AFM':'台積電期','AJE':'聯發科期','ALK':'鴻海期',
-  'ALD':'聯電期','ABF':'中鋼期','ATF':'富邦金期','AQF':'國泰金期'
-};
-
-function isFutures(code) { return !!(futuresDict[code] || stockFutDict[code] || /^[A-Z]{2,4}F$/.test(code) || /^TX|^MTX/.test(code)); }
-
-// 共用解析輸入框內容的函數 (自動過濾殘留符號與多餘字元)
-function resolveInputCode(inputCode) {
-    let resolvedCode = inputCode.trim().toUpperCase().replace(/[^A-Z0-9\u4e00-\u9fa5]/g, '');
-    let cleanCode = null;
-    
-    // 1. 中文名稱精準或模糊比對
-    for(let k in nameDict) { if(nameDict[k] === resolvedCode || nameDict[k].includes(resolvedCode) || resolvedCode.includes(k)) { cleanCode = k; break; } }
-    if(!cleanCode) { for(let k in futuresDict) { if(futuresDict[k] === resolvedCode || futuresDict[k].includes(resolvedCode) || resolvedCode.includes(k)) { cleanCode = k; break; } } }
-    if(!cleanCode) { for(let k in stockFutDict) { if(stockFutDict[k] === resolvedCode || stockFutDict[k].includes(resolvedCode) || resolvedCode.includes(k)) { cleanCode = k; break; } } }
-    
-    // 2. 如果沒在字典裡，看是不是正規的代碼 (包含純數字或英文代碼)
-    if(!cleanCode) {
-        let match = resolvedCode.match(/[A-Z0-9]{2,10}/);
-        if(match) cleanCode = match[0];
-    }
-    return cleanCode;
-}
-
-const QS_DEFAULT = [['2330','台積電'],['0050','台灣50'],['0056','元大高股息'],['00878','國泰永續高股息'],['00919','群益精選高息'],['00929','復華科技優息'],['TX','台指期']];
-let QS = JSON.parse(localStorage.getItem('myCustomQS')) || QS_DEFAULT;
-if (!QS.find(q=>q[0]==='TX') && !QS.find(q=>q[0]==='0050')) { QS = QS_DEFAULT; localStorage.setItem('myCustomQS', JSON.stringify(QS)); }
-function renderQuickButtons() {
-    const qc = document.getElementById('quick-btns'); qc.innerHTML = '';
-    QS.forEach(([code, name], i) => {
-        const b = document.createElement('button'); b.className = 'qbtn'; b.textContent = `${code} ${name}`;
-        b.onclick = () => { document.getElementById('code-input').value = code; doSearch(code); };
-        b.oncontextmenu = (e) => { e.preventDefault(); if(confirm(`移除 ${code}？`)) { QS.splice(i, 1); localStorage.setItem('myCustomQS', JSON.stringify(QS)); renderQuickButtons(); } };
-        qc.appendChild(b);
-    });
-}
-renderQuickButtons();
-
-// 加入自選股 (修正純中文輸入被擋的問題)
-document.getElementById('add-fav-btn').onclick = () => {
-    let inputVal = document.getElementById('code-input').value.trim();
-    let cleanCode = resolveInputCode(inputVal); // 改用共用解析函數
-    
-    if(!cleanCode) return showToast("⚠️ 找不到有效代碼，請確認輸入正確", true);
-    
-    let name = nameDict[cleanCode] || futuresDict[cleanCode] || stockFutDict[cleanCode] || cleanCode;
-    if(QS.find(q => q[0] === cleanCode)) return showToast(`⚠️ ${name} (${cleanCode}) 已在自選列！`);
-    
-    QS.push([cleanCode, name]); localStorage.setItem('myCustomQS', JSON.stringify(QS)); renderQuickButtons();
-    showToast(`✅ ${name} (${cleanCode}) 加入自選！`);
-};
-
-// ==========================================
-// 核心運算
-// ==========================================
-const calcMA = (data, n) => data.map((_, i, arr) => i < n - 1 ? null : arr.slice(i - n + 1, i + 1).reduce((a, b) => a + b.c, 0) / n);
-function calcBB(data, n=20) { return data.map((_, i, arr) => { if (i < n - 1) return null; const slice = arr.slice(i - n + 1, i + 1).map(x => x.c), avg = slice.reduce((a, b) => a + b, 0) / n; const std = Math.sqrt(slice.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / n); return { mid: avg, up: avg + 2*std, dn: avg - 2*std }; }); }
-function calcKD(data, n=9) { let k=50, d=50; return data.map((_, i, arr) => { if(i < n-1) return {k:null, d:null}; const slice = arr.slice(i-n+1, i+1); const hh = Math.max(...slice.map(x=>x.h)), ll = Math.min(...slice.map(x=>x.l)); const rsv = hh===ll ? 50 : (arr[i].c - ll)/(hh - ll)*100; k = k*2/3 + rsv/3; d = d*2/3 + k/3; return {k, d}; }); }
-function calcMACD(data) { const ema = (arr, n) => { const k = 2/(n+1); let e = arr[0]; return arr.map(v => { e = v*k + e*(1-k); return e; }); }; const closes = data.map(x=>x.c); const ema12 = ema(closes, 12), ema26 = ema(closes, 26), dif = ema12.map((v,i) => v - ema26[i]), dea = ema(dif, 9); return dif.map((v,i) => ({ dif: v, dea: dea[i], osc: v - dea[i] })); }
-
-function checkPatternLogic(data) {
-    if(data.length < 30) return { wFormed: false, mFormed: false };
-    const recent = data.slice(-30), lastC = data[data.length-1].c;
-    let min1 = Math.min(...recent.slice(0, 15).map(d=>d.l)), idx1 = recent.findIndex(d=>d.l === min1);
-    let max1 = Math.max(...recent.slice(idx1+1, 25).map(d=>d.h)), min2 = Math.min(...recent.slice(20).map(d=>d.l));
-    let wFormed = (min2 >= min1 * 0.95 && min2 <= min1 * 1.05) && (lastC > max1);
-    let rMax1 = Math.max(...recent.slice(0, 15).map(d=>d.h)), rIdx1 = recent.findIndex(d=>d.h === rMax1);
-    let rMin1 = Math.min(...recent.slice(rIdx1+1, 25).map(d=>d.l)), rMax2 = Math.max(...recent.slice(20).map(d=>d.h));
-    let mFormed = (rMax2 >= rMax1 * 0.95 && rMax2 <= rMax1 * 1.05) && (lastC < rMin1);
-    return { wFormed, mFormed };
-}
-function calcRSI(data, n=14) {
-    const closes = data.map(x=>x.c);
-    return closes.map((c, i) => {
-        if(i < n) return null;
-        let gains=0, losses=0;
-        for(let j=i-n+1; j<=i; j++) { const d=closes[j]-closes[j-1]; if(d>0) gains+=d; else losses-=d; }
-        const ag=gains/n, al=losses/n;
-        return al===0 ? 100 : 100 - 100/(1+ag/al);
-    });
-}
-function calcATR(data, n=14) {
-    return data.map((d, i, arr) => {
-        if(i===0) return d.h-d.l;
-        const tr = Math.max(d.h-d.l, Math.abs(d.h-arr[i-1].c), Math.abs(d.l-arr[i-1].c));
-        if(i < n) return null;
-        let sum=0; for(let j=i-n+1; j<=i; j++) { const dd=arr[j], pp=arr[j-1]||dd; sum+=Math.max(dd.h-dd.l, Math.abs(dd.h-pp.c), Math.abs(dd.l-pp.c)); }
-        return sum/n;
-    });
-}
-function calcPivotSR(data, lookback=60) {
-    const slice = data.slice(-lookback);
-    const resistances=[], supports=[];
-    for(let i=2; i<slice.length-2; i++) {
-        if(slice[i].h > slice[i-1].h && slice[i].h > slice[i-2].h && slice[i].h > slice[i+1].h && slice[i].h > slice[i+2].h) resistances.push(slice[i].h);
-        if(slice[i].l < slice[i-1].l && slice[i].l < slice[i-2].l && slice[i].l < slice[i+1].l && slice[i].l < slice[i+2].l) supports.push(slice[i].l);
-    }
-    resistances.sort((a,b)=>a-b); supports.sort((a,b)=>b-a);
-    return { resistances: resistances.slice(-3), supports: supports.slice(-3) };
-}
-
-function calcNextDayProb(data, lookback=60) {
-  if(data.length < 3) return {u:33, d:33, f:34};
-  const tData = data.slice(-lookback - 1), todayUp = data[data.length-1].c > data[data.length-2].c;
-  let u=0, d=0, f=0, tot=0;
-  for(let i=1; i<tData.length-1; i++) {
-    if((tData[i].c > tData[i-1].c) === todayUp) { tot++; const ret = (tData[i+1].c - tData[i].c) / tData[i].c; if(ret > 0.003) u++; else if(ret < -0.003) d++; else f++; }
-  }
-  if(tot===0) return {u:33, d:33, f:34};
-  return { u: Math.round((u/tot)*100), d: Math.round((d/tot)*100), f: 100 - Math.round((u/tot)*100) - Math.round((d/tot)*100) };
-}
-
-// ==========================================
-// SVG 繪圖核心
-// ==========================================
-const NS = 'http://www.w3.org/2000/svg';
-const mk = (t, a) => { const el = document.createElementNS(NS, t); for(let k in a) el.setAttribute(k, a[k]); return el; };
-function clearSvg(id) { const s = document.getElementById(id); while(s && s.firstChild) s.removeChild(s.firstChild); return s; }
-function drawLine(s, x1, y1, x2, y2, c, w=1, dash='') { s.appendChild(mk('line', {x1,y1,x2,y2, stroke:c, 'stroke-width':w, 'stroke-dasharray':dash})); }
-function drawPath(s, dStr, c, w=1, dash='') { if(dStr) s.appendChild(mk('path', {d:dStr, fill:'none', stroke:c, 'stroke-width':w, 'stroke-dasharray':dash})); }
-function drawText(svg, txt, x, y, c, sz=10, align='start') { const t = mk('text', {x, y, fill:c, 'font-size':sz, 'text-anchor':align, 'dominant-baseline':'middle', 'font-family':'Arial'}); t.innerHTML = txt; svg.appendChild(t); }
-
-function drawKLine(data, ma5, ma20, ma60, bb, sr) {
-  const svg = clearSvg('svg-kline');
-  const r = svg.parentElement.getBoundingClientRect(), W = r.width, H = r.height;
-  const pad = {l:5, r:75, t:20, b:25}, dW = W-pad.l-pad.r, dH = H-pad.t-pad.b, n = data.length, cW = dW/n;
-
-  let minP = Infinity, maxP = -Infinity;
-  for(let i=0; i<n; i++) {
-      if(data[i].h > maxP) maxP=data[i].h; if(data[i].l < minP) minP=data[i].l;
-      if(bb[i]) { maxP=Math.max(maxP, bb[i].up); minP=Math.min(minP, bb[i].dn); }
-  }
-  if (maxP === minP) { maxP += 1; minP -= 1; }
-  const getY = v => pad.t + dH - dH*((v-minP)/(maxP-minP)), getX = i => pad.l + i*cW + cW/2;
-
-  for(let i=0; i<=4; i++) {
-    const y = pad.t + dH*(i/4); drawLine(svg, pad.l, y, W-pad.r, y, 'rgba(30,58,95,0.4)'); drawText(svg, (maxP-(maxP-minP)*(i/4)).toFixed(2), W-pad.r+5, y, '#88aacc', 11);
-  }
-
-  if(sr) {
-    sr.resistances.forEach(v => { if(v>=minP && v<=maxP) { drawLine(svg, pad.l, getY(v), W-pad.r, getY(v), 'rgba(255,80,80,0.45)', 1, '5,3'); drawText(svg, v.toFixed(1), W-pad.r+5, getY(v)-6, '#ff8888', 10); } });
-    sr.supports.forEach(v => { if(v>=minP && v<=maxP) { drawLine(svg, pad.l, getY(v), W-pad.r, getY(v), 'rgba(0,200,80,0.45)', 1, '5,3'); drawText(svg, v.toFixed(1), W-pad.r+5, getY(v)+10, '#00cc55', 10); } });
-  }
-
-  let dUp='', dDn='', dM5='', dM20='', dM60='';
-  data.forEach((d, i) => {
-    const x = getX(i), pre = i===0?'M':'L';
-    if(bb[i]) { dUp += `${pre}${x},${getY(bb[i].up)} `; dDn += `${pre}${x},${getY(bb[i].dn)} `; }
-    if(ma5[i]) dM5 += `${dM5===''?'M':'L'}${x},${getY(ma5[i])} `;
-    if(ma20[i]) dM20 += `${dM20===''?'M':'L'}${x},${getY(ma20[i])} `;
-    if(ma60[i]) dM60 += `${dM60===''?'M':'L'}${x},${getY(ma60[i])} `;
-  });
-  drawPath(svg, dUp, 'rgba(85,119,153,0.6)', 1, '3,3'); drawPath(svg, dDn, 'rgba(85,119,153,0.6)', 1, '3,3');
-  drawPath(svg, dM5, '#ffff00', 1.5); drawPath(svg, dM20, '#00ffff', 1.5); drawPath(svg, dM60, '#ff00ff', 1.5);
-
-  data.forEach((d, i) => {
-    const x = getX(i), c = d.c >= d.o ? 'var(--up)' : 'var(--dn)';
-    drawLine(svg, x, getY(d.h), x, getY(d.l), c, 1.5);
-    svg.appendChild(mk('rect', {x:x-cW*0.35, y:getY(Math.max(d.o, d.c)), width:Math.max(cW*0.7,1), height:Math.max(getY(Math.min(d.o, d.c))-getY(Math.max(d.o, d.c)),2), fill:c}));
-    if(i%Math.floor(n/4)===0) drawText(svg, d.d, x, H-5, '#557799', 10, 'middle');
-  });
-
-  const resTop = maxP, resBot = maxP * 0.97, supLevel = ma60[n-1] || minP, supTop = supLevel * 1.015, supBot = supLevel * 0.985;
-  const nearRes = sr && sr.resistances.length ? sr.resistances[sr.resistances.length-1].toFixed(1) : resTop.toFixed(1);
-  const nearSup = sr && sr.supports.length ? sr.supports[0].toFixed(1) : supBot.toFixed(1);
-  document.getElementById('drag-content').innerHTML = `
-      <div class="drag-row"><span style="color:var(--dim)">近期最高:</span> <span style="color:var(--up); font-weight:bold;">${maxP.toFixed(2)}</span></div>
-      <div class="drag-row"><span style="color:var(--dim)">近期最低:</span> <span style="color:var(--dn); font-weight:bold;">${minP.toFixed(2)}</span></div>
-      <div class="drag-row"><span style="color:var(--dim)">壓力位:</span> <span style="color:#ff8888;">${nearRes}</span></div>
-      <div class="drag-row"><span style="color:var(--dim)">支撐位:</span> <span style="color:#00cc55;">${nearSup}</span></div>
-  `;
-}
-
-function drawMiniChart(id, data, isRed) {
-    const svg = clearSvg(id); if(!svg) return;
-    const W = svg.parentElement.clientWidth, H = svg.parentElement.clientHeight, pad={l:2, r:2, t:15, b:15}, dW=W-pad.l-pad.r, dH=H-pad.t-pad.b, n=data.length, cW=dW/n;
-    let minP = Infinity, maxP = -Infinity;
-    data.forEach(d => { if(d.h > maxP) maxP=d.h; if(d.l < minP) minP=d.l; });
-    const getY = v => pad.t + dH - dH*((v-minP)/(maxP-minP)), getX = i => pad.l + i*cW + cW/2;
-    let m1='', m2='';
-    data.forEach((d,i)=>{
-        if(i>3) m1+=`${m1===''?'M':'L'}${getX(i)},${getY((data[i-1].c+d.c)/2)} `;
-        if(i>6) m2+=`${m2===''?'M':'L'}${getX(i)},${getY((data[i-3].c+d.c)/2 * 0.98)} `;
-        const c = d.c >= d.o ? 'var(--up)' : 'var(--dn)';
-        drawLine(svg, getX(i), getY(d.h), getX(i), getY(d.l), c, 1.5);
-        svg.appendChild(mk('rect', {x:getX(i)-cW*0.4, y:getY(Math.max(d.o, d.c)), width:Math.max(cW*0.8,1), height:Math.max(getY(Math.min(d.o, d.c))-getY(Math.max(d.o, d.c)),2), fill:c}));
-    });
-    drawPath(svg, m1, '#ffff00', 1.5); drawPath(svg, m2, '#ff00ff', 1.5);
-}
-
-function drawVolume(data) {
-  const svg = clearSvg('svg-vol');
-  const W = svg.parentElement.clientWidth, H = svg.parentElement.clientHeight, pad={l:5, r:8, t:15, b:5}, dW=W-pad.l-pad.r, dH=H-pad.t-pad.b, cW=dW/data.length;
-  let maxV = 1; data.forEach(d => maxV=Math.max(maxV, d.v));
-  const getY = v => pad.t+dH - dH*(v/maxV), getX = i => pad.l+i*cW+cW/2;
-  const volMa5 = data.map((_, i, arr) => i < 4 ? null : arr.slice(i-4, i+1).reduce((a, b) => a + b.v, 0)/5);
-  let dM5 = '';
-  data.forEach((d, i) => {
-    const x=getX(i), yV=getY(d.v), c=d.c>=d.o?'rgba(255,51,68,0.8)':'rgba(0,221,85,0.8)';
-    svg.appendChild(mk('rect', {x:x-cW*0.35, y:yV, width:Math.max(cW*0.7,1), height:pad.t+dH-yV, fill:c}));
-    if(volMa5[i]) dM5+=`${dM5===''?'M':'L'}${x},${getY(volMa5[i])} `;
-  });
-  drawPath(svg, dM5, '#ffff00', 1.5);
-
-  const avgV = volMa5[volMa5.length-1] || 1;
-}
-
-function drawKD(kd) {
-  const svg = clearSvg('svg-kd');
-  const W = svg.parentElement.clientWidth, H = svg.parentElement.clientHeight, pad={l:5, r:42, t:15, b:5}, dW=W-pad.l-pad.r, dH=H-pad.t-pad.b;
-  const getY=v=>pad.t+dH-dH*(v/100), getX=i=>pad.l+i*(dW/kd.length)+(dW/kd.length)/2;
-  [20,50,80].forEach(v => { drawLine(svg, pad.l, getY(v), W-pad.r, getY(v), 'rgba(30,58,95,0.4)'); drawText(svg, v.toString(), W-pad.r+4, getY(v), '#88aacc', 10); });
-  let dK='', dD='';
-  kd.forEach((d, i) => { if(d.k!==null) { dK+=`${dK===''?'M':'L'}${getX(i)},${getY(d.k)} `; dD+=`${dD===''?'M':'L'}${getX(i)},${getY(d.d)} `; } });
-  drawPath(svg, dK, '#ffff00', 1.5); drawPath(svg, dD, '#00ffff', 1.5);
-}
-
-function drawMACD(macd) {
-  const svg = clearSvg('svg-macd');
-  const W = svg.parentElement.clientWidth, H = svg.parentElement.clientHeight, pad={l:5, r:42, t:15, b:5}, dW=W-pad.l-pad.r, dH=H-pad.t-pad.b;
-  let maxV = 0.01; macd.forEach(m => maxV=Math.max(maxV, Math.abs(m.dif), Math.abs(m.dea), Math.abs(m.osc*2)));
-  const getY=v=>pad.t+dH/2-(dH/2)*(v/maxV), getX=i=>pad.l+i*(dW/macd.length)+(dW/macd.length)/2, cW=dW/macd.length;
-  drawLine(svg, pad.l, getY(0), W-pad.r, getY(0), 'rgba(30,58,95,0.4)');
-  drawText(svg, '0', W-pad.r+4, getY(0), '#88aacc', 10);
-
-  let dDif='', dDea='';
-  macd.forEach((m, i) => {
-    const x=getX(i), y0=getY(0), yV=getY(m.osc*2), c=m.osc>=0?'var(--up)':'var(--dn)';
-    svg.appendChild(mk('rect', {x:x-cW*0.35, y:Math.min(y0,yV), width:Math.max(cW*0.7,1), height:Math.max(Math.abs(y0-yV),1), fill:c}));
-    dDif+=`${i===0?'M':'L'}${x},${getY(m.dif)} `; dDea+=`${i===0?'M':'L'}${x},${getY(m.dea)} `;
-  });
-  drawPath(svg, dDif, 'var(--up)', 1.5); drawPath(svg, dDea, '#ffff00', 1.5);
-}
-
-function renderAdvancedPattern(id, type, isFormed) {
-    const svg = clearSvg(id); if(!svg) return;
-    svg.setAttribute('viewBox', '0 0 160 80');
-    const lineCol = '#ffffff'; const strokeW = 3.5;
-    drawLine(svg, 10, 45, 135, 45, 'rgba(255,51,68,0.8)', 2, '5,4');
-    drawText(svg, '頸線', 140, 45, 'rgba(255,51,68,0.8)', 14, 'start');
-
-    if (type === 'W') {
-        drawPath(svg, 'M 20,20 L 40,60 L 60,45 L 80,70 L 100,45 L 120,60', lineCol, strokeW);
-        drawPath(svg, 'M 120,60 L 132,30 M 132,30 L 126,34 M 132,30 L 136,37', lineCol, strokeW);
-        drawText(svg, '左肩', 40, 75, '#88aacc', 14, 'middle');
-        drawText(svg, '底部', 80, 75, '#88aacc', 14, 'middle');
-        drawText(svg, '右肩', 120, 75, '#88aacc', 14, 'middle');
-    } else {
-        drawPath(svg, 'M 30,70 L 55,20 L 80,45 L 105,20 L 125,60', lineCol, strokeW);
-        drawPath(svg, 'M 125,60 L 135,80 M 135,80 L 130,75 M 135,80 L 138,71', lineCol, strokeW);
-        drawText(svg, '左峰', 55, 8, '#88aacc', 14, 'middle');
-        drawText(svg, '右峰', 105, 8, '#88aacc', 14, 'middle');
-    }
-}
-
-function drawColoredGauge(id, pct) {
-  const svg = clearSvg(id); if (!svg) return;
-  svg.setAttribute('viewBox', '0 0 100 55'); 
-  const cx=50, cy=45, r=38, c = 2 * Math.PI * r, halfC = c / 2;
-  const bg = mk('circle', {cx, cy, r, fill:'none', stroke:'#111', 'stroke-width':14});
-  const arcR = mk('circle', {cx, cy, r, fill:'none', stroke:'#cc0000', 'stroke-width':12, 'stroke-dasharray':`${halfC*0.4} ${c}`, 'stroke-dashoffset':`${halfC}`});
-  const arcY = mk('circle', {cx, cy, r, fill:'none', stroke:'#ccaa00', 'stroke-width':12, 'stroke-dasharray':`${halfC*0.2} ${c}`, 'stroke-dashoffset':`${halfC*0.6}`});
-  const arcG = mk('circle', {cx, cy, r, fill:'none', stroke:'#009933', 'stroke-width':12, 'stroke-dasharray':`${halfC*0.4} ${c}`, 'stroke-dashoffset':`${halfC*0.4}`});
-  svg.appendChild(bg); svg.appendChild(arcR); svg.appendChild(arcY); svg.appendChild(arcG);
-
-  const a = Math.PI - (pct/100)*Math.PI; 
-  const endX = cx + r*Math.cos(a), endY = cy - r*Math.sin(a);
-  drawLine(svg, cx, cy, endX, endY, '#ffffff', 3);
-  svg.appendChild(mk('circle', {cx, cy, r:5, fill:'#fff'}));
-}
-
-// ==========================================
-// UI 更新綁定
-// ==========================================
-function updateUI(res, ma5, ma20, ma60, bb, kd, macd, rsi, lastATR) {
-  const hist = res.history, n = hist.length, last = hist[n-1], prev = hist[n-2] || last;
-  const chg = last.c - prev.c, pct = prev.c !== 0 ? (chg/prev.c*100).toFixed(2) : "0.00", cColor = chg>=0 ? 'var(--up)':'var(--dn)';
-
-  document.getElementById('h-name').innerText = res.name;
-  document.getElementById('h-code').innerHTML = `(${res.code}) <span style="color:var(--yl); margin-left:12px; font-size:14px;">📅 最新資料: ${last.d}</span>`;
-  document.getElementById('h-price').innerText = last.c.toFixed(2); document.getElementById('h-price').style.color = cColor;
-  document.getElementById('h-chg').innerText = `${chg>0?'▲':'▼'} ${Math.abs(chg).toFixed(2)} (${pct}%)`; document.getElementById('h-chg').style.color = cColor;
-  
-  document.getElementById('h-vol').innerText = `${last.v} 張`; document.getElementById('h-svol').innerText = Math.floor(last.v/10); 
-  document.getElementById('h-bid').innerText = (last.c - 0.05).toFixed(2); document.getElementById('h-ask').innerText = (last.c + 0.05).toFixed(2); 
-
-  document.getElementById('l-ma5').innerText = ma5[n-1]?.toFixed(2) || '-'; document.getElementById('l-ma20').innerText = ma20[n-1]?.toFixed(2) || '-'; document.getElementById('l-ma60').innerText = ma60[n-1]?.toFixed(2) || '-';
-  document.getElementById('l-bb-up').innerText = bb[n-1]?.up.toFixed(2) || '-'; document.getElementById('l-bb-mid').innerText = bb[n-1]?.mid.toFixed(2) || '-'; document.getElementById('l-bb-dn').innerText = bb[n-1]?.dn.toFixed(2) || '-';
-  
-  if(kd[n-1]) { document.getElementById('l-k').innerText = kd[n-1].k.toFixed(2); document.getElementById('l-d').innerText = kd[n-1].d.toFixed(2); }
-  if(macd[n-1]) { document.getElementById('l-dif').innerText = macd[n-1].dif.toFixed(2); document.getElementById('l-macd').innerText = macd[n-1].dea.toFixed(2); document.getElementById('l-osc').innerText = (macd[n-1].osc*2).toFixed(2); document.getElementById('l-osc-lbl').style.color = macd[n-1].osc >= 0 ? 'var(--up)' : 'var(--dn)'; }
-  
-  const volArr = hist.map(d=>d.v), avgVol5UI = volArr.slice(-5).reduce((a,b)=>a+b,0)/5;
-  document.getElementById('l-v-vol').innerText = last.v; document.getElementById('l-v-ma5').innerText = Math.floor(avgVol5UI);
-
-  const l5=ma5[n-1], l20=ma20[n-1], l60=ma60[n-1];
-  let trStr='震盪整理', trC='var(--dim)'; 
-  if(l5 && l20 && l60) { if(l5>l20 && l20>l60){trStr='多頭趨勢';trC='var(--up)';} else if(l5<l20 && l20<l60){trStr='空頭趨勢';trC='var(--dn)';} }
-
-  // 1. 中段：動態多週期趨勢分析
-  drawMiniChart('svg-mc-60', hist.slice(-15), trC==='var(--up)');
-  const sStat = last.c > (ma5[n-1]||0) ? '高檔震盪' : '弱勢整理';
-  const sTr = last.c > (ma5[n-1]||0) ? '短線偏多' : '短線偏弱';
-  const sSt = last.c > (ma5[n-1]||0) ? '蓄勢挑戰前高' : '無法再創新高';
-  document.getElementById('mc-info-60').innerHTML = `狀態：<span style="color:#fff">${sStat}</span><br>趨勢：<span style="color:var(--yl)">${sTr}</span><br>結構：<span style="color:var(--dim)">${sSt}</span>`;
-  
-  drawMiniChart('svg-mc-d', hist.slice(-40), true);
-  const dStat = last.c > (ma20[n-1]||0) ? '高檔整理' : '低檔尋撐';
-  const dTr = last.c > (ma20[n-1]||0) ? '多頭趨勢' : '空頭弱勢';
-  const dSt = last.c > (ma20[n-1]||0) ? '主升段中繼整理' : '均線反壓沉重';
-  document.getElementById('mc-info-d').innerHTML = `狀態：<span style="color:#fff">${dStat}</span><br>趨勢：<span style="color:var(--up)">${dTr}</span><br>結構：<span style="color:var(--dim)">${dSt}</span>`;
-  
-  drawMiniChart('svg-mc-w', hist.filter((_,i)=>i%5===0).slice(-20), true);
-  const wStat = last.c > (ma60[n-1]||0) ? '主升段後期' : '空頭探底';
-  const wTr = last.c > (ma60[n-1]||0) ? '波段強勢' : '波段偏空';
-  const wSt = last.c > (ma60[n-1]||0) ? '多頭延續' : '長線趨勢走弱';
-  document.getElementById('mc-info-w').innerHTML = `狀態：<span style="color:#fff">${wStat}</span><br>趨勢：<span style="color:var(--up)">${wTr}</span><br>結構：<span style="color:var(--dim)">${wSt}</span>`;
-
-  // 副圖 ind-box 更新
-  const avgVol5 = hist.slice(-5).reduce((a,b)=>a+b.v,0)/5;
-  const volTrendStr = last.v > avgVol5 ? '量增發散 ⬆' : '量縮整理 ⬇';
-  const volTrendC   = last.v > avgVol5 ? 'var(--up)' : 'var(--dn)';
-  const boxVolEl = document.getElementById('box-vol');
-  boxVolEl.innerHTML = volTrendStr; boxVolEl.style.color = volTrendC;
-  boxVolEl.parentElement.style.borderColor = last.v > avgVol5 ? 'rgba(255,51,68,0.5)' : 'rgba(0,221,85,0.5)';
-
-  const kdKv = kd[n-1]?.k||50, kdDv = kd[n-1]?.d||50;
-  const kdTrendStr  = kdKv > kdDv ? '多方排列 ⬆' : '空方排列 ⬇';
-  const kdTrendC    = kdKv > kdDv ? 'var(--up)' : 'var(--dn)';
-  const boxKdEl = document.getElementById('box-kd');
-  boxKdEl.innerHTML = kdTrendStr; boxKdEl.style.color = kdTrendC;
-  boxKdEl.parentElement.style.borderColor = kdKv > kdDv ? 'rgba(255,51,68,0.5)' : 'rgba(0,221,85,0.5)';
-
-  const macdOsc = macd[n-1]?.osc||0, macdPrevOsc = macd[n-2]?.osc||0;
-  let macdTrendStr = '';
-  if(macdOsc > 0) macdTrendStr = macdOsc > macdPrevOsc ? '多方動能<br>增溫 ⬆' : '多方動能<br>縮減 ⬆';
-  else macdTrendStr = macdOsc < macdPrevOsc ? '空方動能<br>增溫 ⬇' : '空方動能<br>縮減 ⬇';
-  const macdTrendC  = macdOsc > 0 ? 'var(--up)' : 'var(--dn)';
-  const boxMacdEl = document.getElementById('box-macd');
-  boxMacdEl.innerHTML = macdTrendStr; boxMacdEl.style.color = macdTrendC;
-  boxMacdEl.parentElement.style.borderColor = macdOsc > 0 ? 'rgba(255,51,68,0.5)' : 'rgba(0,221,85,0.5)';
-
-  // 更新浮動診斷乖離資訊
-  const bias20 = l20 ? ((last.c - l20) / l20 * 100).toFixed(1) : 0;
-  document.getElementById('drag-content').innerHTML = `
-      <div class="drag-row"><span style="color:var(--dim)">乖離(MA20):</span> <span style="color:${bias20>0?'var(--up)':'var(--dn)'}; font-weight:bold;">${bias20>0?'+':''}${bias20}%</span></div>
-      <div class="drag-row"><span style="color:var(--dim)">均線格局:</span> <span style="color:${trC}">${trStr}</span></div>
-  `;
-
-  // 2. 右側：技術分析總覽 (分數 + 進度條)
-  const rsiVal = (rsi && rsi[n-1]) ? rsi[n-1] : 50;
-  const kdBull = kd[n-1] && kd[n-1].k > kd[n-1].d;
-  const macdBull = macd[n-1] && macd[n-1].osc > 0;
-  const isSafe = (trC==='var(--up)') || kdBull || (macdBull && rsiVal > 45);
-  const isBullish = isSafe;
-  const volRecent5 = hist.slice(-5).reduce((a,b)=>a+b.v,0)/5;
-  const volPrev5x  = hist.slice(-10,-5).reduce((a,b)=>a+b.v,0)/5;
-
-  const trendScore = trStr==='多頭趨勢'?88:(trStr==='空頭趨勢'?22:52);
-  const momoScore  = Math.min(95, Math.max(5, Math.round(rsiVal)));
-  const kdScore    = kd[n-1] ? Math.min(95, Math.max(5, Math.round(kd[n-1].k))) : 50;
-  const volScore   = volRecent5 > volPrev5x*1.3 ? 88 : (volRecent5 > volPrev5x*1.0 ? 65 : 38);
-  const totalScore = Math.min(99, Math.max(10, Math.round(trendScore*0.35 + momoScore*0.25 + kdScore*0.25 + volScore*0.15)));
-  const scoreColor = totalScore>=70?'#ff3344':(totalScore>=50?'#ffaa00':'#00cc55');
-  const maStr = (l5>l20&&l20>l60)?'5>20>60':(l5<l20&&l20<l60)?'5<20<60':'糾結';
-  const mkBar = (label, val, color) =>
-    `<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">
-       <div style="width:26px;font-size:13px;color:var(--dim);text-align:right;flex-shrink:0">${label}</div>
-       <div style="flex:1;background:#0a1a2a;border-radius:2px;height:14px;overflow:hidden;">
-         <div style="width:${val}%;height:100%;background:${color};border-radius:2px;"></div>
-       </div>
-       <div style="width:26px;font-size:13px;color:#fff;text-align:right;flex-shrink:0">${val}</div>
-     </div>`;
-
-  document.getElementById('tech-overview').innerHTML = `
-    <div style="display:flex;align-items:center;gap:14px;padding:10px 14px 6px 14px;">
-      <div style="text-align:center;min-width:56px;flex-shrink:0;">
-        <div style="font-size:46px;font-weight:bold;color:${scoreColor};font-family:Arial;line-height:1">${totalScore}</div>
-        <div style="font-size:12px;color:var(--dim);margin-top:2px;">綜合評分</div>
-      </div>
-      <div style="flex:1;">
-        ${mkBar('趨勢', trendScore, '#ff3344')}
-        ${mkBar('動能', momoScore, '#ffcc00')}
-        ${mkBar('KD',   kdScore,   '#ffcc00')}
-        ${mkBar('量能', volScore,  '#ff3344')}
-      </div>
-    </div>
-    <div style="border-top:1px solid var(--border);padding:7px 12px;font-size:14px;color:var(--dim);">
-      趨勢方向：<span style="color:${trC}">${trStr}</span> ｜ 均線：${maStr} ｜ 建議：<span style="color:var(--yl)">${isSafe?'順勢偏多':'保守觀望'}</span>
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('resultArea').innerHTML = `
+    <div class="result-box analyzing">
+      <div class="result-status"><div class="spinner"></div> AI 正在分析中，請稍候…</div>
     </div>`;
 
-  // 3. 右側：主力進出
-  let htmlMain = `<tr><th>日期</th><th>主力增減</th><th>收盤價</th><th>漲幅</th></tr>`;
-  hist.slice(-15).reverse().forEach((d, i, arr) => {
-    const mf = Math.floor((d.c - d.o) * d.v * 0.1), prevC = arr[i+1] ? arr[i+1].c : d.o, dailyPct = ((d.c - prevC)/prevC*100).toFixed(2);
-    htmlMain += `<tr><td>${d.d}</td><td style="color:${mf>0?'var(--up)':'var(--dn)'}">${mf}</td><td>${d.c.toFixed(2)}</td><td style="color:${dailyPct>0?'var(--up)':'var(--dn)'}">${dailyPct}%</td></tr>`;
-  });
-  document.getElementById('t-main').innerHTML = htmlMain;
+  const prompt = currentMode === 'receipt'
+    ? `你是一位台灣專業藥師，請仔細分析這張藥單或處方收據的圖片。
+請用繁體中文，以下面的格式輸出：
 
-  // 4. 關鍵價位 (中段右側)
-  const rHigh = Math.max(...hist.slice(-20).map(d=>d.h)), rLow = Math.min(...hist.slice(-20).map(d=>d.l));
-  const pullBackHigh = ((rHigh+rLow)/2).toFixed(0), pullBackLow = (rHigh*0.95).toFixed(0);
-  document.getElementById('v-res').innerText = `${(rHigh*0.98).toFixed(0)} ~ ${rHigh.toFixed(0)}`;
-  document.getElementById('v-pull').innerText = `${pullBackHigh} ~ ${pullBackLow}`;
-  document.getElementById('v-sup').innerText = `${(rLow*0.95).toFixed(0)} ~ ${(rLow*1.02).toFixed(0)}`;
-  document.getElementById('v-def').innerText = `跌破 ${(rLow*0.98).toFixed(0)} 轉弱`;
-  document.getElementById('v-brk').innerText = `突破 ${rHigh.toFixed(0)} 才強`;
+【藥品清單分析】
+列出每一種藥品，格式：
+藥名：
+用途：（這個藥是治什麼的）
+劑量用法：（從收據上看到的）
+注意事項：（常見副作用或禁忌）
+評估：（正常開立 / 注意 / 需詢問）
 
-  // 5. 底部：操作建議與技術總覽表格 (字體放大版)
-  const atrStop = lastATR ? (last.c - 2*lastATR).toFixed(1) : (rLow*0.97).toFixed(0);
-  const atrTgt  = lastATR ? (last.c + 2*lastATR).toFixed(1) : (rHigh*1.03).toFixed(0);
-  const advTitle = isBullish ? '偏多，等待回檔布局' : '偏空，輕倉觀望為主';
-  document.getElementById('p-adv-new').innerHTML = `
-      <div class="adv-row"><div class="adv-icon" style="color:var(--yl)">➡</div> <span>策略：${advTitle}</span></div>
-      <div class="adv-row"><div class="adv-icon" style="color:var(--yl)">➡</div> <span>進場觀察：${pullBackHigh} ~ ${pullBackLow} 附近止跌翻紅</span></div>
-      <div class="adv-row"><div class="adv-icon" style="color:var(--up)">🎯</div> <span>目標價：${atrTgt}（2×ATR）/ 前高 ${rHigh.toFixed(0)}</span></div>
-      <div class="adv-row"><div class="adv-icon" style="color:var(--dn)">⛔</div> <span>停損防守：${atrStop}（2×ATR）/ 跌破 ${(rLow*0.97).toFixed(0)} 出場</span></div>
-      <div class="adv-row"><div class="adv-icon" style="color:var(--up)">🚩</div> <span>RSI ${rsiVal.toFixed(0)} | ATR ${lastATR ? lastATR.toFixed(2) : '--'}，${rsiVal>70?'過熱留意拉回':rsiVal<35?'超賣可留意買點':'區間正常'}</span></div>
-  `;
-  const bb_n = bb[n-1];
-  const bbPos = bb_n ? (last.c > bb_n.up ? '上軌過熱' : (last.c < bb_n.dn ? '下軌尋撐' : '通道內')) : '--';
-  const bbDir = bb_n ? (last.c > bb_n.up ? 'var(--up)' : (last.c < bb_n.dn ? 'var(--dn)' : 'var(--dim)')) : 'var(--dim)';
-  const rsiStr = rsiVal>70?'超買注意':(rsiVal<30?'超賣反彈':'中性區間');
-  const rsiCol = rsiVal>70?'var(--up)':(rsiVal<30?'var(--dn)':'var(--dim)');
-  const tr_i = (lbl, val, arrowC, arrow, desc) =>
-    `<tr><td style="color:var(--dim);padding:5px 4px">${lbl}</td><td style="padding:5px 4px">${val}</td><td style="color:${arrowC};font-weight:bold;font-size:16px;padding:5px 4px">${arrow}</td><td style="padding:5px 4px">${desc}</td></tr>`;
-  document.getElementById('t-ind').innerHTML = `
-    <tr><th style="text-align:center;padding:6px 4px">指標</th><th style="text-align:center;padding:6px 4px">數值</th><th style="text-align:center;padding:6px 4px">向</th><th style="text-align:center;padding:6px 4px">解讀</th></tr>
-    ${tr_i('KD(9,3)', `${kd[n-1]?kd[n-1].k.toFixed(1):'--'}/${kd[n-1]?kd[n-1].d.toFixed(1):'--'}`, kdBull?'var(--up)':'var(--dn)', kdBull?'⬆':'⬇', kdBull?'黃金交叉':'死亡交叉')}
-    ${tr_i('MACD', `${macd[n-1]?macd[n-1].dif.toFixed(2):'--'}`, macdBull?'var(--up)':'var(--dn)', macdBull?'⬆':'⬇', macdBull?'多頭延續':'空頭延續')}
-    ${tr_i('RSI(14)', rsiVal.toFixed(1), rsiCol, rsiVal>70?'⬆':(rsiVal<30?'⬇':'→'), rsiStr)}
-    ${tr_i('均線', maStr, trC, trStr==='多頭趨勢'?'⬆':(trStr==='空頭趨勢'?'⬇':'→'), trStr)}
-    ${tr_i('布林', bb_n?`${bb_n.mid.toFixed(1)}`:'--', bbDir, last.c>(bb_n?.mid||0)?'⬆':'⬇', bbPos)}
-  `;
+【中藥材分析】（如果是中藥處方）
+列出每種藥材及其功效
 
-  // 主力燈號：多因子加權
-  let sigScore = 0;
-  if(trC==='var(--up)') sigScore += 3;
-  if(kdBull) sigScore += 2;
-  if(macdBull) sigScore += 2;
-  if(rsiVal > 50 && rsiVal < 75) sigScore += 1;
-  else if(rsiVal >= 75) sigScore -= 1;
-  if(volRecent5 > volPrev5x * 1.2) sigScore += 2;
+【整體評估】
+這組藥品的搭配是否合理？有無重複或可能的交互作用？有無需要特別注意的地方？
 
-  let sigLabel, sigDesc, sigColorVal;
-  if(sigScore >= 7)      { sigLabel='強力多頭';  sigDesc='多因子全面看多，<br>主力積極介入';   sigColorVal='var(--up)'; }
-  else if(sigScore >= 4) { sigLabel='偏多佈局';  sigDesc='趨勢偏多為主，<br>留意量能變化';   sigColorVal='#ffaa00'; }
-  else if(sigScore >= 1) { sigLabel='中性觀望';  sigDesc='多空拉鋸整理中，<br>等待方向確認';   sigColorVal='#aaccff'; }
-  else                   { sigLabel='偏空出貨';  sigDesc='空頭信號出現，<br>需留意下行風險'; sigColorVal='var(--dn)'; }
+請盡量詳細，如果圖片不清晰某些部分無法辨認，請說明。`
+    : `你是一位台灣專業藥師，請辨識這張圖片中的藥丸或膠囊。
+請用繁體中文，以下面的格式輸出：
 
-  document.getElementById('sig-circle').style.background = sigColorVal;
-  document.getElementById('sig-circle').style.boxShadow = `0 0 20px ${sigColorVal}`;
-  document.getElementById('sig-text').innerText = sigLabel;
-  document.getElementById('sig-text').style.color = sigColorVal;
-  document.getElementById('sig-sub').innerHTML = sigDesc;
+【藥品辨識】
+藥品外觀描述：（顏色、形狀、刻字）
+可能是：（藥品名稱）
+用途：
+常見副作用：
+注意事項：
 
-  // 勝率：加權模型
-  let wrScore = 50;
-  if(trC==='var(--up)') wrScore += 12; else wrScore -= 10;
-  if(kdBull) wrScore += 8; else wrScore -= 5;
-  if(macdBull) wrScore += 8; else wrScore -= 5;
-  if(rsiVal > 45 && rsiVal < 70) wrScore += 5;
-  else if(rsiVal >= 70) wrScore -= 3;
-  else if(rsiVal < 35) wrScore += 4;
-  if(volRecent5 > volPrev5x * 1.2 && last.c > prev.c) wrScore += 5;
-  const winRate = Math.min(88, Math.max(18, Math.round(wrScore)));
+【重要提醒】
+（安全使用注意事項）
 
-  document.getElementById('g-val').innerText = winRate + '%';
-  document.getElementById('g-desc').innerHTML = winRate >= 65 ? '強勢佈局' : (winRate >= 50 ? '勝率上升中' : '勝率偏低');
-  document.getElementById('g-desc').style.color = winRate >= 50 ? 'var(--up)' : 'var(--yl)';
-  drawColoredGauge('svg-gauge', winRate);
+注意：如果無法確定是什麼藥，請說明可能的範圍，並提醒用戶諮詢藥師。`;
 
-  // 明日預測：6因子模型
-  const probs = calcNextDayProb(hist, 60);
-  // 用RSI調整
-  let adjUp = probs.u, adjDn = probs.d;
-  if(rsiVal > 70) { adjUp -= 5; adjDn += 5; }
-  else if(rsiVal < 30) { adjUp += 6; adjDn -= 6; }
-  if(kdBull && macdBull) { adjUp += 4; adjDn -= 4; }
-  const adjFl = 100 - Math.max(0,adjUp) - Math.max(0,adjDn);
-  adjUp = Math.max(5, Math.min(90, adjUp)); adjDn = Math.max(5, Math.min(90, adjDn));
-  document.getElementById('p-up').innerText = adjUp + '%';
-  document.getElementById('p-dn').innerText = adjDn + '%';
-  document.getElementById('p-fl').innerText = Math.max(5, adjFl) + '%';
-  const concColor = adjUp > adjDn ? 'var(--up)' : 'var(--dn)';
-  const concStr = adjUp > adjDn ? '偏多' : '偏空';
-  document.getElementById('pie-conc').innerHTML = `綜合 RSI(${rsiVal.toFixed(0)}) + KD + MACD 多因子分析，明日走勢<span style="color:${concColor}; font-weight:bold;">${concStr}</span>，注意 ${(rLow*0.985).toFixed(0)} 支撐與 ${(rHigh*0.995).toFixed(0)} 壓力。<br><br><span style="font-size:13px; color:#557799">※ 本預測為歷史回測統計，僅供參考，投資決策請自行判斷。</span>`;
-
-  const pat = checkPatternLogic(hist);
-  renderAdvancedPattern('svg-pat-w', 'W', pat.wFormed); renderAdvancedPattern('svg-pat-m', 'M', pat.mFormed);
-  document.getElementById('pat-w-conc').innerHTML = pat.wFormed ? '結論：<span style="color:var(--up);font-weight:bold;">✅ 形成標準W底</span>' : '結論：<span style="color:var(--up);font-weight:bold;">❌ 未形成標準W底</span>';
-  document.getElementById('pat-w-rsn').innerHTML = pat.wFormed ? '理由：右肩完成，<br>且帶量突破頸線' : '理由：右肩未完成，<br>且頸線未突破';
-  document.getElementById('pat-m-conc').innerHTML = pat.mFormed ? '結論：<span style="color:var(--up);font-weight:bold;">✅ 形成標準M頭</span>' : '結論：<span style="color:var(--up);font-weight:bold;">❌ 未形成標準M頭</span>';
-  document.getElementById('pat-m-rsn').innerHTML = pat.mFormed ? '理由：右峰確認，<br>且跌破頸線' : '理由：右峰未確認，<br>且跌破頸線';
-}
-
-async function fetchFinMind(cleanCode, sd, TOKEN) {
-    const isFut = isFutures(cleanCode);
-    let url, mapFn;
-    if(isFut) {
-        url = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanFuturesDaily&data_id=${cleanCode}&start_date=${sd}&token=${TOKEN}`;
-        mapFn = d => ({d:d.date.substring(5).replace('-','/'), o:d.open, h:d.max, l:d.min, c:d.close, v:Math.round((d.volume||d.trading_volume||0))});
-    } else {
-        url = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${cleanCode}&start_date=${sd}&token=${TOKEN}`;
-        mapFn = d => ({d:d.date.substring(5).replace('-','/'), o:d.open, h:d.max, l:d.min, c:d.close, v:Math.round(d.Trading_Volume/1000)});
-    }
-    const r = await fetch(url);
-    const j = await r.json();
-    if(!j.data || j.data.length < 1) throw new Error('FinMind無資料');
-    let data = j.data;
-    if(isFut) {
-        const byDate = {};
-        data.forEach(d => {
-            const v = d.volume || d.trading_volume || 0;
-            if(!byDate[d.date] || v > (byDate[d.date].volume || byDate[d.date].trading_volume || 0)) {
-                byDate[d.date] = d;
-            }
-        });
-        data = Object.values(byDate).sort((a,b)=>a.date.localeCompare(b.date));
-    }
-    return data.map(mapFn).filter(d=>d.c>0);
-}
-
-// 證交所備援機制升級：縮短範圍至半年 + 0.3秒安全延遲防封鎖
-async function fetchTWSE(cleanCode) {
-    const today = new Date(); let allData = [];
-    for(let m=0; m<6; m++) { 
-        const dd = new Date(today.getFullYear(), today.getMonth()-m, 1);
-        const ym = `${dd.getFullYear()}${String(dd.getMonth()+1).padStart(2,'0')}01`;
-        try {
-            // 加入 corsproxy 解除瀏覽器對證交所的連線阻擋
-            const r = await fetch(`https://corsproxy.io/?https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date=${ym}&stockNo=${cleanCode}`);
-            const j = await r.json();
-            if(j.stat === 'OK' && j.data) allData = j.data.concat(allData);
-            await new Promise(res => setTimeout(res, 300)); // 安全延遲 0.3 秒
-        } catch(e){}
-        if(allData.length > 150) break;
-    }
-    if(allData.length < 1) throw new Error('該代碼太新尚無歷史資料，或輸入錯誤');
-    return allData.map(row => {
-        const close = parseFloat(row[6].replace(/,/g,'')), open = parseFloat(row[3].replace(/,/g,'')),
-              high = parseFloat(row[4].replace(/,/g,'')), low = parseFloat(row[5].replace(/,/g,'')),
-              vol = Math.round(parseInt(row[1].replace(/,/g,''))/1000);
-        const parts = row[0].split('/'); const yr = parseInt(parts[0])+1911;
-        return {d:`${parts[1]}/${parts[2]}`, o:open||close, h:high||close, l:low||close, c:close, v:isNaN(vol)?0:vol};
-    }).filter(d=>d.c>0);
-}
-
-// 查詢邏輯
-async function doSearch(inputCode) {
-  let cleanCode = resolveInputCode(inputCode);
-  
-  if(!cleanCode) return showToast("⚠️ 請輸入正確代碼或中文名稱", true);
-  
-  document.getElementById('loading').style.display = 'flex';
+  // Detect key type and call appropriate API
+  const isOpenRouter = apiKey.startsWith('sk-or-');
+  const isGroq = apiKey.startsWith('gsk_');
 
   try {
-    const sd = "2023-11-01";
-    
-    // 從輸入框取得 Token
-    const TOKEN = document.getElementById('api-key-input').value.trim();
-    if (!TOKEN) {
-        showToast("⚠️ 請先在右上角輸入 FinMind API Token！", true);
-        document.getElementById('loading').style.display = 'none';
-        return;
+    let text;
+
+    if (isOpenRouter || isGroq) {
+      // OpenAI-compatible format (OpenRouter / Groq)
+      const baseUrl = isOpenRouter
+        ? 'https://openrouter.ai/api/v1/chat/completions'
+        : 'https://api.groq.com/openai/v1/chat/completions';
+      const model = isOpenRouter
+        ? 'google/gemini-2.0-flash-exp:free'
+        : 'meta-llama/llama-4-scout-17b-16e-instruct';
+
+      const body = {
+        model,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: `data:${currentImageMime};base64,${currentImageBase64}` } },
+            { type: 'text', text: prompt }
+          ]
+        }],
+        temperature: 0.3,
+        max_tokens: 2048
+      };
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      };
+      if (isOpenRouter) {
+        headers['HTTP-Referer'] = 'https://elicchiu45.github.io/medicine-scanner';
+        headers['X-Title'] = 'AI Medicine Scanner';
+      }
+
+      const res = await fetch(baseUrl, { method: 'POST', headers, body: JSON.stringify(body) });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || `API 錯誤 ${res.status}`);
+      }
+      const data = await res.json();
+      text = data.choices?.[0]?.message?.content || '無法取得分析結果';
+
+    } else {
+      // Google Gemini format
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const body = {
+        contents: [{ parts: [
+          { text: prompt },
+          { inline_data: { mime_type: currentImageMime, data: currentImageBase64 } }
+        ]}],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+      };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || `API 錯誤 ${res.status}`);
+      }
+      const data = await res.json();
+      text = data.candidates?.[0]?.content?.parts?.[0]?.text || '無法取得分析結果';
     }
-    // 記憶 Token
-    localStorage.setItem('finmind_token', TOKEN);
 
-    let hist = null;
-    try {
-        hist = await fetchFinMind(cleanCode, sd, TOKEN);
-    } catch(e1) {
-        showToast('⚠️ FinMind無法取得，嘗試備援...');
-        try { hist = await fetchTWSE(cleanCode); }
-        catch(e2) { throw new Error(e2.message || '無法取得資料，請確認代碼正確'); }
-    }
+    renderResult(text);
 
-    const ma5=calcMA(hist,5), ma20=calcMA(hist,20), ma60=calcMA(hist,60);
-    const bb=calcBB(hist,20), kd=calcKD(hist,9), macd=calcMACD(hist);
-    const rsi=calcRSI(hist,14), atrArr=calcATR(hist,14);
-    const lastATR = atrArr.filter(x=>x!==null).slice(-1)[0] || 1;
-    const sr = calcPivotSR(hist, 80);
-
-    window._currentData = { code:cleanCode, hist, ma5, ma20, ma60, kd, macd, rsi, atr:lastATR, sr };
-
-    const R_LEN = 100;
-    setTimeout(() => {
-        const rHist=hist.slice(-R_LEN), rMa5=ma5.slice(-R_LEN), rMa20=ma20.slice(-R_LEN), rMa60=ma60.slice(-R_LEN), rBb=bb.slice(-R_LEN);
-        drawKLine(rHist, rMa5, rMa20, rMa60, rBb, sr); drawKD(kd.slice(-R_LEN)); drawMACD(macd.slice(-R_LEN)); drawVolume(rHist);
-    }, 50);
-
-    const stockName = nameDict[cleanCode] || futuresDict[cleanCode] || stockFutDict[cleanCode] || cleanCode;
-    updateUI({code: cleanCode, name: stockName, history: hist}, ma5, ma20, ma60, bb, kd, macd, rsi, lastATR);
-
-  } catch(e) { showToast("⚠️ 查詢失敗：" + e.message, true); }
-  document.getElementById('loading').style.display = 'none';
+  } catch (err) {
+    document.getElementById('resultArea').innerHTML = `
+      <div class="result-box" style="border-color:var(--red);">
+        <div class="result-status" style="color:var(--red);">❌ 分析失敗</div>
+        <div style="font-size:13px; color:var(--gray); line-height:1.8;">
+          ${err.message}<br><br>
+          請確認：<br>
+          • API Key 是否正確<br>
+          • 網路連線是否正常<br>
+          • Gemini API 是否已啟用
+        </div>
+      </div>`;
+  } finally {
+    document.getElementById('analyzeBtn').disabled = false;
+  }
 }
 
-document.getElementById('search-btn').onclick = () => doSearch(document.getElementById('code-input').value.trim());
-document.getElementById('code-input').onkeydown = e => { if(e.key==='Enter') doSearch(e.target.value.trim()); };
+function renderResult(text) {
+  // Parse and render the result beautifully
+  const lines = text.split('\n');
+  let html = '<div class="result-box" style="border-color:var(--green);">';
+  html += '<div class="result-status" style="color:var(--green);">✅ 分析完成</div>';
 
-// API 驗證按鈕邏輯
-document.getElementById('verify-api-btn').onclick = () => {
-    const token = document.getElementById('api-key-input').value.trim();
-    if(!token) return showToast("⚠️ 請先輸入 API Token！", true);
-    document.getElementById('loading').style.display = 'flex';
-    setTimeout(() => {
-        document.getElementById('loading').style.display = 'none';
-        if(token.length > 10) {
-            localStorage.setItem('finmind_token', token);
-            showToast("✅ API 驗證成功！已儲存 Token。");
+  let inDrugBlock = false;
+  let drugHtml = '';
+  let isWarnDrug = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) { if (inDrugBlock) { html += `<div class="drug-item${isWarnDrug?' warn':' ok'}">${drugHtml}</div>`; drugHtml=''; inDrugBlock=false; } continue; }
+
+    // Section headers
+    if (line.startsWith('【') && line.endsWith('】')) {
+      if (inDrugBlock) { html += `<div class="drug-item${isWarnDrug?' warn':' ok'}">${drugHtml}</div>`; drugHtml=''; inDrugBlock=false; }
+      html += `<h3 style="color:var(--yellow); font-size:15px; font-weight:700; margin:16px 0 8px; padding-bottom:6px; border-bottom:1px solid rgba(255,204,0,0.2);">${line}</h3>`;
+      continue;
+    }
+
+    // Drug name line
+    if (line.startsWith('藥名：') || line.match(/^\d+\.\s*藥名：/)) {
+      if (inDrugBlock) html += `<div class="drug-item${isWarnDrug?' warn':' ok'}">${drugHtml}</div>`;
+      isWarnDrug = false; drugHtml = ''; inDrugBlock = true;
+      const name = line.replace(/^\d+\.\s*/, '').replace('藥名：', '').trim();
+      drugHtml += `<div class="drug-name">${name}</div>`;
+      continue;
+    }
+
+    if (inDrugBlock) {
+      if (line.startsWith('評估：')) {
+        const val = line.replace('評估：','').trim();
+        if (val.includes('注意') || val.includes('詢問')) {
+          isWarnDrug = true;
+          drugHtml += `<span class="tag warn">⚠️ ${val}</span>`;
         } else {
-            showToast("❌ Token 格式錯誤或無效。", true);
+          drugHtml += `<span class="tag ok">✅ ${val}</span>`;
         }
-    }, 800);
-};
+      } else if (line.startsWith('用途：')) {
+        drugHtml += `<div class="drug-use" style="margin-top:6px;"><b style="color:var(--blue);">用途</b> ${line.replace('用途：','').trim()}</div>`;
+      } else if (line.startsWith('劑量用法：')) {
+        drugHtml += `<div class="drug-meta">💊 ${line.replace('劑量用法：','').trim()}</div>`;
+      } else if (line.startsWith('注意事項：')) {
+        const warn = line.replace('注意事項：','').trim();
+        if (warn && warn !== '無特殊') drugHtml += `<div class="drug-use" style="color:#ffaa77;font-size:12px;">⚠️ ${warn}</div>`;
+      } else {
+        drugHtml += `<div class="drug-use">${line}</div>`;
+      }
+      continue;
+    }
 
-window.onload = async () => { 
-    // 自動帶入上一次記憶的 Token
-    const savedToken = localStorage.getItem('finmind_token');
-    if(savedToken) document.getElementById('api-key-input').value = savedToken;
-    
-    // 背景載入全市場字典，確保每次開網頁都能抓到最新上市的股票名稱
-    fetchFullStockDict().then(() => {
-        // 如果此時畫面上已經顯示代碼但還沒有中文名稱，自動幫它補上中文
-        const currentInput = document.getElementById('code-input').value.trim();
-        if(currentInput && window._currentData) {
-            const cCode = window._currentData.code;
-            if(nameDict[cCode]) {
-                document.getElementById('h-name').innerText = nameDict[cCode];
-            }
-        }
-    });
-    
-    // 延遲 0.1 秒後執行預設查詢
-    setTimeout(() => doSearch('3661'), 100); 
+    // 【整體評估】content
+    if (line.includes('❌') || line.includes('不建議') || line.includes('交互作用') || line.includes('警告')) {
+      html += `<div style="background:rgba(255,68,85,0.08); border:1px solid rgba(255,68,85,0.3); border-radius:10px; padding:10px 14px; margin-bottom:8px; font-size:13px; color:#ff8899; line-height:1.7;">${line}</div>`;
+    } else if (line.startsWith('•') || line.startsWith('-') || line.startsWith('·')) {
+      html += `<div style="font-size:13px; color:var(--text); padding:3px 0 3px 12px; border-left:2px solid var(--border); margin-bottom:4px; line-height:1.7;">${line.substring(1).trim()}</div>`;
+    } else {
+      html += `<div style="font-size:13px; color:var(--text); line-height:1.9; margin-bottom:4px;">${line}</div>`;
+    }
+  }
+
+  if (inDrugBlock && drugHtml) html += `<div class="drug-item${isWarnDrug?' warn':' ok'}">${drugHtml}</div>`;
+
+  html += '<div class="disclaimer" style="margin-top:16px; padding:0;">⚕️ 以上分析僅供參考，用藥請遵照醫師處方，有疑問請諮詢藥師。</div>';
+  html += '</div>';
+
+  document.getElementById('resultArea').innerHTML = html;
+}
+
+// ── Init ──
+window.onload = () => {
+  updateApiNotice();
+  const savedKey = getApiKey();
+  if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
 };
 </script>
 </body>
